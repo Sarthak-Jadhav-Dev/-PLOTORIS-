@@ -1,0 +1,265 @@
+@import "tailwindcss";
+
+/* ============================================
+   PLOTORIS DESIGN SYSTEM
+   Bold Black & Orange Premium Theme
+   ============================================ */
+
+:root {
+  --background: #050505;
+  --foreground: #f0f0f0;
+  --orange-primary: #FF6B00;
+  --orange-light: #FF8C38;
+  --orange-dark: #CC5500;
+  --orange-glow: rgba(255, 107, 0, 0.4);
+  --surface: #0d0d0d;
+  --surface-raised: #141414;
+  --surface-overlay: #1a1a1a;
+  --border: #222222;
+  --border-hover: #333333;
+  --text-primary: #f0f0f0;
+  --text-secondary: #999999;
+  --text-muted: #666666;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-orange-primary: var(--orange-primary);
+  --color-orange-light: var(--orange-light);
+  --color-orange-dark: var(--orange-dark);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-overlay: var(--surface-overlay);
+  --color-border: var(--border);
+  --color-border-hover: var(--border-hover);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+
+  --font-sans: 'Poppins', sans-serif;
+
+  --animate-fade-in: fadeIn 0.6s ease-out forwards;
+  --animate-slide-up: slideUp 0.6s ease-out forwards;
+  --animate-glow-pulse: glowPulse 3s ease-in-out infinite;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-spin-slow: spin 8s linear infinite;
+}
+
+/* ============================================
+   BASE STYLES
+   ============================================ */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--orange-primary) var(--surface);
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--surface);
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--orange-primary);
+  border-radius: 3px;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: 'Poppins', sans-serif;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: var(--orange-primary);
+  color: #ffffff;
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+
+.glass-card {
+  background: rgba(20, 20, 20, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+}
+
+.glass-card-strong {
+  background: rgba(20, 20, 20, 0.85);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+}
+
+.gradient-border {
+  position: relative;
+  border-radius: 16px;
+}
+
+.gradient-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, var(--orange-primary), transparent 60%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.glow-orange {
+  box-shadow: 0 0 30px var(--orange-glow), 0 0 60px rgba(255, 107, 0, 0.15);
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, var(--orange-primary), var(--orange-light));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-wide {
+  background: linear-gradient(90deg, var(--orange-light), var(--orange-primary), #FF4500);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero-gradient {
+  background: radial-gradient(ellipse at 50% 0%, rgba(255, 107, 0, 0.15) 0%, transparent 60%);
+}
+
+.section-gradient {
+  background: linear-gradient(180deg, transparent 0%, rgba(255, 107, 0, 0.03) 50%, transparent 100%);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--orange-primary), var(--orange-dark));
+  color: #ffffff;
+  border: none;
+  padding: 12px 32px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px var(--orange-glow);
+}
+
+.btn-primary::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--orange-light), var(--orange-primary));
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.btn-primary:hover::after {
+  opacity: 1;
+}
+
+.btn-primary span {
+  position: relative;
+  z-index: 1;
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  padding: 12px 32px;
+  border-radius: 12px;
+  font-weight: 500;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-secondary:hover {
+  border-color: var(--orange-primary);
+  color: var(--orange-primary);
+  background: rgba(255, 107, 0, 0.05);
+}
+
+/* ============================================
+   KEYFRAME ANIMATIONS
+   ============================================ */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes glowPulse {
+  0%, 100% {
+    box-shadow: 0 0 20px var(--orange-glow);
+  }
+  50% {
+    box-shadow: 0 0 40px var(--orange-glow), 0 0 80px rgba(255, 107, 0, 0.1);
+  }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes beamMove {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
+/* ============================================
+   RESPONSIVE TWEAKS
+   ============================================ */
+
+@media (max-width: 768px) {
+  .glass-card, .glass-card-strong {
+    border-radius: 12px;
+  }
+
+  .btn-primary, .btn-secondary {
+    padding: 10px 24px;
+    font-size: 14px;
+  }
+}

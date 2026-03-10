@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Github, Twitter, Linkedin, Mail } from "lucide-react";
 
 const footerLinks = {
@@ -32,16 +33,14 @@ export default function Footer() {
     return (
         <footer className="relative bg-surface border-t border-border">
             {/* Gradient divider */}
-            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-orange-primary to-transparent" />
+            <div className="absolute top-0 left-0 right-0 h-px bg-linear-to-r from-transparent via-orange-primary to-transparent" />
 
             <div className="max-w-7xl mx-auto px-6 lg:px-8 py-16">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-12">
                     {/* Brand */}
                     <div className="lg:col-span-2">
                         <Link href="/" className="flex items-center gap-3 mb-4">
-                            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-orange-primary to-orange-dark flex items-center justify-center font-bold text-white text-sm">
-                                P
-                            </div>
+                            <Image src="/plotoris.png" alt="Plotoris Logo" width={36} height={36} className="w-9 h-9 object-contain" />
                             <span className="text-lg font-bold">
                                 Ploto<span className="text-gradient">ris</span>
                             </span>

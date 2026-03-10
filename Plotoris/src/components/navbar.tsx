@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Menu, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -28,19 +29,15 @@ export default function Navbar() {
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ duration: 0.6, ease: [0.4, 0, 0.2, 1] }}
                 className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${isScrolled
-                        ? "glass-card-strong shadow-lg shadow-black/30"
-                        : "bg-transparent"
+                    ? "glass-card-strong shadow-lg shadow-black/30"
+                    : "bg-transparent"
                     }`}
             >
                 <div className="max-w-7xl mx-auto px-6 lg:px-8">
                     <div className="flex items-center justify-between h-20">
                         {/* Logo */}
                         <Link href="/" className="flex items-center gap-3 group">
-                            <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-orange-primary to-orange-dark flex items-center justify-center font-bold text-white text-lg group-hover:shadow-lg group-hover:shadow-orange-primary/30 transition-all duration-300">
-                                P
-                                <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-orange-light to-orange-primary opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                                <span className="relative z-10">P</span>
-                            </div>
+                            <Image src="/plotoris.png" alt="Plotoris Logo" width={40} height={40} className="w-10 h-10 object-contain group-hover:scale-105 transition-transform duration-300" />
                             <span className="text-xl font-bold tracking-tight">
                                 Ploto<span className="text-gradient">ris</span>
                             </span>
@@ -68,7 +65,7 @@ export default function Navbar() {
                             >
                                 Log In
                             </Link>
-                            <Link href="/signup" className="btn-primary !py-2.5 !px-6 !text-sm !rounded-lg">
+                            <Link href="/signup" className="btn-primary py-2.5! px-6! text-sm! rounded-lg!">
                                 <span>Get Started</span>
                             </Link>
                         </div>
@@ -116,7 +113,7 @@ export default function Navbar() {
                             <Link
                                 href="/signup"
                                 onClick={() => setMobileOpen(false)}
-                                className="btn-primary text-center !text-lg"
+                                className="btn-primary text-center text-lg!"
                             >
                                 <span>Get Started</span>
                             </Link>

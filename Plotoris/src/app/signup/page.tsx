@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, Mail, Lock, User, ArrowRight, CheckCircle2 } from "lucide-react";
 import { useState } from "react";
@@ -20,7 +21,7 @@ export default function SignupPage() {
             {/* Left Panel — Branding */}
             <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden items-center justify-center">
                 {/* Animated Background */}
-                <div className="absolute inset-0 bg-gradient-to-br from-background via-surface to-background" />
+                <div className="absolute inset-0 bg-linear-to-br from-background via-surface to-background" />
                 <div className="absolute top-1/3 right-1/4 w-96 h-96 bg-orange-primary/15 rounded-full blur-[150px] animate-float" />
                 <div className="absolute bottom-1/4 left-1/3 w-72 h-72 bg-orange-dark/10 rounded-full blur-[120px] animate-float" style={{ animationDelay: "2s" }} />
 
@@ -41,9 +42,7 @@ export default function SignupPage() {
                         transition={{ duration: 0.6 }}
                     >
                         <Link href="/" className="flex items-center gap-3 mb-12">
-                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-primary to-orange-dark flex items-center justify-center font-bold text-white text-xl">
-                                P
-                            </div>
+                            <Image src="/plotoris.png" alt="Plotoris Logo" width={48} height={48} className="w-12 h-12 object-contain" />
                             <span className="text-2xl font-bold">
                                 Ploto<span className="text-gradient">ris</span>
                             </span>
@@ -67,7 +66,7 @@ export default function SignupPage() {
                                     transition={{ delay: 0.3 + i * 0.15, duration: 0.4 }}
                                     className="flex items-center gap-3"
                                 >
-                                    <CheckCircle2 size={20} className="text-orange-primary flex-shrink-0" />
+                                    <CheckCircle2 size={20} className="text-orange-primary shrink-0" />
                                     <span className="text-sm text-text-secondary">{benefit}</span>
                                 </motion.div>
                             ))}
@@ -89,9 +88,7 @@ export default function SignupPage() {
                     {/* Mobile Logo */}
                     <div className="lg:hidden mb-8">
                         <Link href="/" className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-primary to-orange-dark flex items-center justify-center font-bold text-white text-lg">
-                                P
-                            </div>
+                            <Image src="/plotoris.png" alt="Plotoris Logo" width={40} height={40} className="w-10 h-10 object-contain" />
                             <span className="text-xl font-bold">
                                 Ploto<span className="text-gradient">ris</span>
                             </span>
@@ -205,7 +202,7 @@ export default function SignupPage() {
                         {/* Submit */}
                         <button
                             type="submit"
-                            className="btn-primary w-full !py-4 !rounded-xl !text-base group"
+                            className="btn-primary w-full py-4! rounded-xl! text-base! group"
                         >
                             <span className="flex items-center justify-center gap-2">
                                 Create Account

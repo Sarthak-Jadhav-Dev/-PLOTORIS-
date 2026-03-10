@@ -123,7 +123,7 @@ const aboutPoints = [
   {
     icon: FlaskConical,
     title: "Built by Researchers",
-    body: "Plotoris was founded by PhD students and AI engineers who were frustrated with outdated academic tooling. We built the platform we always wished existed.",
+    body: "Plotoris was founded by students and  engineers who were frustrated with outdated academic tooling. We built the platform we always wished existed.",
   },
   {
     icon: Globe,
@@ -133,7 +133,7 @@ const aboutPoints = [
   {
     icon: ShieldCheck,
     title: "Privacy & Data Security",
-    body: "Your research is your intellectual property. We never train on your private documents without permission. Enterprise accounts get full data isolation and SOC 2 compliance.",
+    body: "Your research is your intellectual property. We never train on your private documents without permission.",
   },
   {
     icon: GitMerge,
@@ -148,14 +148,14 @@ const aboutPoints = [
   {
     icon: Zap,
     title: "Lightning Fast",
-    body: "Distributed GPU inference and intelligent caching deliver results in milliseconds — even for complex multi-paper analyses. Speed is a feature, not an afterthought.",
+    body: "Distributed inference and intelligent results in milliseconds — even for complex multi-paper analyses. Speed is a feature, not an afterthought.",
   },
 ];
 
 const stats = [
-  { value: 2500000, suffix: "+", label: "Papers Analyzed" },
-  { value: 85000, suffix: "+", label: "Active Researchers" },
-  { value: 150, suffix: "+", label: "Data Sources" },
+  // // { value: , suffix: "+", label: "Papers Analyzed" },
+  // { value: 85000, suffix: "+", label: "Active Researchers" },
+  // { value: 100, suffix: "+", label: "Data Sources" },
   { value: 99, suffix: "%", label: "Accuracy Rate" },
 ];
 
@@ -269,15 +269,15 @@ export default function HomePage() {
             className="mt-16 flex items-center justify-center gap-8 text-text-muted text-sm"
           >
             <span className="flex items-center gap-2">
-              <FileText size={14} /> 2.5M+ Papers
+              <FileText size={14} /> Millions of Papers
             </span>
             <span className="w-1 h-1 rounded-full bg-text-muted" />
             <span className="flex items-center gap-2">
-              <Users size={14} /> 85K+ Researchers
+              <Users size={14} /> 100's of Researchers
             </span>
             <span className="w-1 h-1 rounded-full bg-text-muted hidden sm:block" />
             <span className="hidden sm:flex items-center gap-2">
-              <Zap size={14} /> Real-time AI
+              <Zap size={14} /> Real-time AI Agents and Agentic AI
             </span>
           </motion.div>
         </div>

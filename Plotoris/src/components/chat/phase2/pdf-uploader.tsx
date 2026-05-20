@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { UploadCloud, FileText, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export default function PdfUploader({ onUploadComplete }: { onUploadComplete: () => void }) {
+export default function PdfUploader({ projectId, onUploadComplete }: { projectId: string, onUploadComplete: (paper?: any) => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [uploadState, setUploadState] = useState<"idle" | "uploading" | "success" | "error">("idle");
   const [statusMessage, setStatusMessage] = useState("");
@@ -27,17 +27,25 @@ export default function PdfUploader({ onUploadComplete }: { onUploadComplete: ()
     try {
       const formData = new FormData();
       formData.append("file", file);
+      formData.append("project_id", projectId);
       
+      const geminiKey = localStorage.getItem(`plotoris_gemini_key_${projectId}`) || "";
+      const headers: any = {};
+      if (geminiKey) headers["x-gemini-key"] = geminiKey;
+
       const res = await fetch("/api/phase2/upload-paper", {
         method: "POST",
+        headers,
         body: formData,
       });
       
       if (!res.ok) throw new Error("Upload failed");
       
+      const data = await res.json();
+      
       setUploadState("success");
       setStatusMessage("Paper successfully processed and embedded.");
-      setTimeout(onUploadComplete, 2000);
+      setTimeout(() => onUploadComplete(data.paper), 2000);
     } catch (err) {
       setUploadState("error");
       setStatusMessage("Failed to process the PDF. Check your OpenAI API key.");

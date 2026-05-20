@@ -19,10 +19,11 @@ interface Problem {
 }
 
 interface ProblemGeneratorProps {
-  onProblemSelected: (problem: Problem) => void;
+  projectId?: string;
+  onProblemSelected: (problem: any) => void;
 }
 
-export default function ProblemGenerator({ onProblemSelected }: ProblemGeneratorProps) {
+export default function ProblemGenerator({ projectId, onProblemSelected }: ProblemGeneratorProps) {
   const [domain, setDomain] = useState("");
   const [context, setContext] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -37,10 +38,14 @@ export default function ProblemGenerator({ onProblemSelected }: ProblemGenerator
     setProblems([]);
     
     try {
+      const geminiKey = projectId ? localStorage.getItem(`plotoris_gemini_key_${projectId}`) || "" : "";
+      const headers: any = { "Content-Type": "application/json" };
+      if (geminiKey) headers["x-gemini-key"] = geminiKey;
+
       const res = await fetch("/api/phase1/generate-problems", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ domain, context })
+        headers,
+        body: JSON.stringify({ domain, project_id: projectId, context })
       });
       const data = await res.json();
       if (data.problems) {
@@ -174,7 +179,7 @@ export default function ProblemGenerator({ onProblemSelected }: ProblemGenerator
           >
             {problems.map((prob, i) => (
               <motion.div 
-                key={prob.id}
+                key={prob.id || String(i)}
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: i * 0.1 }}
@@ -196,15 +201,15 @@ export default function ProblemGenerator({ onProblemSelected }: ProblemGenerator
                 <div className="mt-auto pt-4 space-y-4">
                   <div>
                     <button 
-                      onClick={() => setExpandedId(expandedId === prob.id ? null : prob.id)}
+                      onClick={() => setExpandedId(expandedId === (prob.id || String(i)) ? null : (prob.id || String(i)))}
                       className="text-xs text-[#888] hover:text-white transition-colors flex items-center gap-1"
                     >
-                      {expandedId === prob.id ? "Hide rationale" : "Show rationale"}
-                      {expandedId === prob.id ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                      {expandedId === (prob.id || String(i)) ? "Hide rationale" : "Show rationale"}
+                      {expandedId === (prob.id || String(i)) ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                     </button>
                     
                     <AnimatePresence>
-                      {expandedId === prob.id && (
+                      {expandedId === (prob.id || String(i)) && (
                         <motion.div 
                           initial={{ height: 0, opacity: 0 }}
                           animate={{ height: "auto", opacity: 1 }}

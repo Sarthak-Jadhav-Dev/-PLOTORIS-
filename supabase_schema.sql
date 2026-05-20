@@ -106,6 +106,44 @@ CREATE TRIGGER set_users_updated_at    BEFORE UPDATE ON public."Users"    FOR EA
 CREATE TRIGGER set_projects_updated_at BEFORE UPDATE ON public."Projects" FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================================
+-- Project Tasks Table
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public."ProjectTasks" (
+    id              UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    project_id      UUID NOT NULL REFERENCES public."Projects"(id) ON DELETE CASCADE,
+    title           TEXT NOT NULL,
+    sub             TEXT,
+    badge           TEXT,
+    badge_color     TEXT,
+    completed       BOOLEAN DEFAULT FALSE,
+    assigned_to     UUID REFERENCES public."Users"(id),
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ptasks_project ON public."ProjectTasks"(project_id);
+ALTER TABLE public."ProjectTasks" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "anon_all_ptasks" ON public."ProjectTasks" FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE TRIGGER set_ptasks_updated_at BEFORE UPDATE ON public."ProjectTasks" FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================
+-- Project Activity Table
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public."ProjectActivity" (
+    id              UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    project_id      UUID NOT NULL REFERENCES public."Projects"(id) ON DELETE CASCADE,
+    user_id         UUID REFERENCES public."Users"(id),
+    user_name       TEXT NOT NULL,
+    action          TEXT NOT NULL,
+    color           TEXT DEFAULT 'bg-[#3b82f6]',
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_pactivity_project ON public."ProjectActivity"(project_id);
+ALTER TABLE public."ProjectActivity" ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "anon_all_pactivity" ON public."ProjectActivity" FOR ALL TO anon USING (true) WITH CHECK (true);
+
+-- ============================================================
 -- Papers Table
 -- ============================================================
 CREATE TABLE IF NOT EXISTS public."Papers" (

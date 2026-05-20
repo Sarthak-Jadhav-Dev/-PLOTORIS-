@@ -1,41 +1,53 @@
 import { NextResponse } from "next/server";
-import { OpenAIEmbeddings } from "@langchain/openai";
-import { SupabaseVectorStore } from "@langchain/community/vectorstores/supabase";
-import { createClient } from "@supabase/supabase-js";
+import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { supabase } from "@/lib/supabase";
 
 export async function POST(req: Request) {
   try {
-    const { query } = await req.json();
+    const { query, project_id } = await req.json();
+
+    const geminiKey = req.headers.get("x-gemini-key") || process.env.GEMINI_API_KEY;
 
     if (!query) {
       return NextResponse.json({ error: "Query is required" }, { status: 400 });
     }
-
-    // Check for OpenAI API key
-    if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === "your_openai_api_key_here") {
-      console.warn("No valid OPENAI_API_KEY found. Returning mock results.");
-      await new Promise(r => setTimeout(r, 1000));
-      throw new Error("No OpenAI Key"); // Trigger fallback in frontend
+    if (!project_id) {
+      return NextResponse.json({ error: "Project ID is required" }, { status: 400 });
+    }
+    if (!geminiKey) {
+      return NextResponse.json({ error: "Gemini API key is required." }, { status: 401 });
     }
 
-    const supabaseKey = process.env.SUPABASE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !supabaseKey) {
-       throw new Error("Supabase credentials missing.");
-    }
-    const client = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, supabaseKey);
-
-    const vectorStore = new SupabaseVectorStore(new OpenAIEmbeddings(), {
-      client,
-      tableName: "Documents",
-      queryName: "match_documents",
+    const embeddings = new GoogleGenerativeAIEmbeddings({
+      apiKey: geminiKey,
+      model: "text-embedding-004",
     });
 
-    const similarityResults = await vectorStore.similaritySearchWithScore(query, 5);
+    const queryEmbedding = await embeddings.embedQuery(query);
 
-    const formattedResults = similarityResults.map(([doc, score]) => ({
-      title: doc.metadata.source || "Unknown Source",
-      content: doc.pageContent,
-      similarity: score, // Note: pgvector match_documents returns cosine similarity where 1 is perfect match
+    // Call the match_documents function in Supabase
+    // We filter by project_id and specific types (papers/chunks)
+    const { data: documents, error } = await supabase.rpc('match_documents', {
+      query_embedding: queryEmbedding,
+      match_count: 8,
+      filter: { project_id }
+    });
+
+    if (error) {
+      console.error("Supabase match_documents error:", error);
+      throw new Error("Failed to search database.");
+    }
+
+    // Filter to only paper chunks and fetched papers just to be safe
+    const validDocs = (documents || []).filter((doc: any) => 
+      doc.metadata?.type === "paper_chunk" || doc.metadata?.type === "fetched_paper"
+    );
+
+    const formattedResults = validDocs.map((doc: any) => ({
+      title: doc.metadata?.title || "Unknown Source",
+      content: doc.content,
+      similarity: doc.similarity, 
+      metadata: doc.metadata
     }));
 
     return NextResponse.json({ results: formattedResults });

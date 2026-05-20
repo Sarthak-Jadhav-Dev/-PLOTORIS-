@@ -7,12 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
 interface SmartBuilderProps {
+  projectId?: string;
   problemContext: any;
   questionContext: any;
   onObjectivesFinalized: (data: any) => void;
 }
 
-export default function SmartBuilder({ problemContext, questionContext, onObjectivesFinalized }: SmartBuilderProps) {
+export default function SmartBuilder({ projectId, problemContext, questionContext, onObjectivesFinalized }: SmartBuilderProps) {
   const [goal, setGoal] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
@@ -23,13 +24,18 @@ export default function SmartBuilder({ problemContext, questionContext, onObject
     setResult(null);
     
     try {
+      const geminiKey = projectId ? localStorage.getItem(`plotoris_gemini_key_${projectId}`) || "" : "";
+      const headers: any = { "Content-Type": "application/json" };
+      if (geminiKey) headers["x-gemini-key"] = geminiKey;
+
       const res = await fetch("/api/phase1/smart-conversion", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ 
+          project_id: projectId,
           goal, 
           problem: problemContext?.statement, 
-          question: questionContext?.question 
+          question: questionContext?.validation_result?.improved_versions?.[0]?.version || questionContext?.question 
         })
       });
       const data = await res.json();

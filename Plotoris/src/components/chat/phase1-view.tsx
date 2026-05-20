@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, ChevronRight, Loader2, Network } from "lucide-react";
+import { Check, ChevronRight, Loader2, Network, FastForward, Wand2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 
 import ProblemGenerator from "./phase1/problem-generator";
 import QuestionValidator from "./phase1/question-validator";
@@ -18,10 +19,19 @@ const STEPS = [
   "SMART Objectives"
 ];
 
-export default function PhaseOneView() {
+interface PhaseOneViewProps {
+  projectId?: string;
+}
+
+export default function PhaseOneView({ projectId }: PhaseOneViewProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [isFinalizing, setIsFinalizing] = useState(false);
   const [finalResult, setFinalResult] = useState<any>(null);
+  
+  // Fast-Track State
+  const [isBypassMode, setIsBypassMode] = useState(false);
+  const [customIdea, setCustomIdea] = useState("");
+  const [isSubmittingBypass, setIsSubmittingBypass] = useState(false);
 
   // State context
   const [problem, setProblem] = useState<any>(null);
@@ -34,10 +44,15 @@ export default function PhaseOneView() {
     setIsFinalizing(true);
 
     try {
+      const geminiKey = projectId ? localStorage.getItem(`plotoris_gemini_key_${projectId}`) || "" : "";
+      const headers: any = { "Content-Type": "application/json" };
+      if (geminiKey) headers["x-gemini-key"] = geminiKey;
+
       const res = await fetch("/api/phase1/finalize", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
+          project_id: projectId,
           problem,
           question: questionData,
           scope,
@@ -50,6 +65,35 @@ export default function PhaseOneView() {
     } catch (err) {
       console.error(err);
     } finally {
+      setIsFinalizing(false);
+    }
+  };
+
+  const handleBypassSubmit = async () => {
+    if (!customIdea.trim()) return;
+    setIsSubmittingBypass(true);
+    setIsFinalizing(true);
+
+    try {
+      const geminiKey = projectId ? localStorage.getItem(`plotoris_gemini_key_${projectId}`) || "" : "";
+      const headers: any = { "Content-Type": "application/json" };
+      if (geminiKey) headers["x-gemini-key"] = geminiKey;
+
+      const res = await fetch("/api/phase1/direct-entry", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          project_id: projectId,
+          custom_idea: customIdea
+        })
+      });
+      const data = await res.json();
+      setFinalResult(data);
+      setCurrentStep(4); // Move to completion view
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSubmittingBypass(false);
       setIsFinalizing(false);
     }
   };
@@ -87,27 +131,77 @@ export default function PhaseOneView() {
         </div>
       </div>
 
+      {/* Mode Toggle (Only show if not finalized) */}
+      {currentStep < 4 && !isFinalizing && (
+        <div className="flex justify-center mt-6">
+          <div className="bg-[#1a1a1a] p-1 rounded-lg flex gap-1 border border-[#333]">
+            <button
+              onClick={() => setIsBypassMode(false)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${!isBypassMode ? 'bg-[#333] text-white' : 'text-[#888] hover:text-white hover:bg-[#222]'}`}
+            >
+              <Wand2 size={16} /> Guided AI Process
+            </button>
+            <button
+              onClick={() => setIsBypassMode(true)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${isBypassMode ? 'bg-[#333] text-white' : 'text-[#888] hover:text-white hover:bg-[#222]'}`}
+            >
+              <FastForward size={16} /> Fast-Track (Direct Entry)
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Main Content Area */}
       <div className="flex-1 p-6 lg:p-10">
         <AnimatePresence mode="wait">
-          {currentStep === 0 && (
-            <motion.div key="step0" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-              <ProblemGenerator onProblemSelected={(p) => { setProblem(p); setCurrentStep(1); }} />
+          
+          {isBypassMode && currentStep < 4 && (
+            <motion.div key="bypass-mode" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="max-w-3xl mx-auto w-full">
+              <div className="bg-[#1a1a1a] border border-[#333] p-8 rounded-2xl shadow-xl">
+                <h2 className="text-2xl font-bold text-white mb-2">Fast-Track Your Project</h2>
+                <p className="text-[#888] mb-6 leading-relaxed">
+                  Already have a clear research topic, problem statement, or instructions? Paste it below. The AI will parse your input, structure it into the Phase 1 format, and seed your project's knowledge graph automatically.
+                </p>
+                <Textarea 
+                  placeholder="Paste your abstract, assignment instructions, or raw research idea here..."
+                  className="bg-[#0d0d0d] border-[#333] text-white min-h-[250px] mb-6 focus:border-orange-500/50 p-4"
+                  value={customIdea}
+                  onChange={(e) => setCustomIdea(e.target.value)}
+                />
+                <div className="flex justify-end">
+                  <Button 
+                    onClick={handleBypassSubmit} 
+                    disabled={!customIdea.trim() || isSubmittingBypass}
+                    className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-6 rounded-xl"
+                  >
+                    {isSubmittingBypass ? <Loader2 size={20} className="animate-spin mr-2" /> : <FastForward size={20} className="mr-2" />}
+                    Initialize Project
+                  </Button>
+                </div>
+              </div>
             </motion.div>
           )}
 
-          {currentStep === 1 && (
+          {!isBypassMode && currentStep === 0 && (
+            <motion.div key="step0" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+              <ProblemGenerator projectId={projectId} onProblemSelected={(p) => { setProblem(p); setCurrentStep(1); }} />
+            </motion.div>
+          )}
+
+          {!isBypassMode && currentStep === 1 && (
             <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
               <QuestionValidator 
+                projectId={projectId}
                 problemContext={problem} 
                 onQuestionValidated={(q) => { setQuestionData(q); setCurrentStep(2); }} 
               />
             </motion.div>
           )}
 
-          {currentStep === 2 && (
+          {!isBypassMode && currentStep === 2 && (
             <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
               <ScopeBuilder 
+                projectId={projectId}
                 problemContext={problem}
                 questionContext={questionData}
                 onScopeFinalized={(s) => { setScope(s); setCurrentStep(3); }} 
@@ -115,9 +209,10 @@ export default function PhaseOneView() {
             </motion.div>
           )}
 
-          {currentStep === 3 && (
+          {!isBypassMode && currentStep === 3 && (
             <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
               <SmartBuilder 
+                projectId={projectId}
                 problemContext={problem}
                 questionContext={questionData}
                 onObjectivesFinalized={handleFinalize} 

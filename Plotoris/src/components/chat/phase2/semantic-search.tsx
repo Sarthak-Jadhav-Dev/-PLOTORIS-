@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Search, Loader2, FileText, ChevronRight, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export default function SemanticSearch() {
+export default function SemanticSearch({ projectId }: { projectId: string }) {
   const [query, setQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [results, setResults] = useState<any[] | null>(null);
@@ -19,7 +19,7 @@ export default function SemanticSearch() {
       const res = await fetch("/api/phase2/semantic-search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ query, project_id: projectId }),
       });
       const data = await res.json();
       setResults(data.results || []);

@@ -7,12 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 interface ScopeBuilderProps {
+  projectId?: string;
   problemContext: any;
   questionContext: any;
   onScopeFinalized: (data: any) => void;
 }
 
-export default function ScopeBuilder({ problemContext, questionContext, onScopeFinalized }: ScopeBuilderProps) {
+export default function ScopeBuilder({ projectId, problemContext, questionContext, onScopeFinalized }: ScopeBuilderProps) {
   const [inclusions, setInclusions] = useState<string[]>([]);
   const [exclusions, setExclusions] = useState<string[]>([]);
   const [population, setPopulation] = useState<string[]>([]);
@@ -25,12 +26,18 @@ export default function ScopeBuilder({ problemContext, questionContext, onScopeF
   const fetchSuggestions = async () => {
     setIsLoading(true);
     try {
+      const geminiKey = projectId ? localStorage.getItem(`plotoris_gemini_key_${projectId}`) || "" : "";
+      const headers: any = { "Content-Type": "application/json" };
+      if (geminiKey) headers["x-gemini-key"] = geminiKey;
+
       const res = await fetch("/api/phase1/scope-suggestions", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ 
+          project_id: projectId,
           problem: problemContext?.statement, 
-          question: questionContext?.question 
+          question: questionContext?.validation_result?.improved_versions?.[0]?.version || questionContext?.question,
+          domain: "Computer Science" 
         })
       });
       const data = await res.json();

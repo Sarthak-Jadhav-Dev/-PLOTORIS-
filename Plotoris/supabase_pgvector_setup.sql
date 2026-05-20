@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS public."Documents" (
     id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
     content TEXT NOT NULL,
     metadata JSONB DEFAULT '{}'::jsonb,
-    embedding VECTOR(1536) -- OpenAI embedding dimensionality
+    embedding VECTOR(768) -- Gemini embedding dimensionality
 );
 
 -- 3. Create an index for fast semantic similarity search (using inner product)
@@ -23,7 +23,7 @@ USING hnsw (embedding vector_cosine_ops);
 -- 4. Create a function to perform similarity search 
 -- This will be called by SupabaseVectorStore from LangChain
 CREATE OR REPLACE FUNCTION match_documents(
-  query_embedding vector(1536),
+  query_embedding vector(768),
   match_count int DEFAULT 10,
   filter jsonb DEFAULT '{}'
 ) RETURNS TABLE (

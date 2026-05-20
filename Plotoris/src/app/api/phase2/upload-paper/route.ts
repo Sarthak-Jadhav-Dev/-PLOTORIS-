@@ -1,61 +1,224 @@
 import { NextResponse } from "next/server";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
-import { OpenAIEmbeddings } from "@langchain/openai";
-import { SupabaseVectorStore } from "@langchain/community/vectorstores/supabase";
-import { createClient } from "@supabase/supabase-js";
-// import pdfParse from "pdf-parse"; // In a real node env, you'd use pdf-parse to extract text. 
+import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { supabase } from "@/lib/supabase";
+const pdfParse = require("pdf-parse");
+import { StateGraph, START, END } from "@langchain/langgraph";
+import { BaseMessage } from "@langchain/core/messages";
+
+// Define the state for the LangGraph workflow
+interface AgentState {
+  fileBuffer: Buffer;
+  fileName: string;
+  projectId: string;
+  geminiKey: string;
+  paperId: string;
+  textContent: string;
+  chunks: string[];
+  recordsToInsert: any[];
+  processedCount: number;
+  error?: string;
+}
+
+const graphState = {
+  fileBuffer: {
+    value: (x: Buffer, y: Buffer) => y,
+    default: () => Buffer.from(""),
+  },
+  fileName: {
+    value: (x: string, y: string) => y,
+    default: () => "",
+  },
+  projectId: {
+    value: (x: string, y: string) => y,
+    default: () => "",
+  },
+  geminiKey: {
+    value: (x: string, y: string) => y,
+    default: () => "",
+  },
+  paperId: {
+    value: (x: string, y: string) => y,
+    default: () => "",
+  },
+  textContent: {
+    value: (x: string, y: string) => y,
+    default: () => "",
+  },
+  chunks: {
+    value: (x: string[], y: string[]) => y,
+    default: () => [],
+  },
+  recordsToInsert: {
+    value: (x: any[], y: any[]) => y,
+    default: () => [],
+  },
+  processedCount: {
+    value: (x: number, y: number) => y,
+    default: () => 0,
+  },
+  error: {
+    value: (x: string | undefined, y: string | undefined) => y,
+    default: () => undefined,
+  },
+};
+
+// Node: Parse PDF
+async function parsePdfNode(state: AgentState): Promise<Partial<AgentState>> {
+  try {
+    const pdfData = await pdfParse(state.fileBuffer);
+    const textContent = pdfData.text;
+    if (!textContent || textContent.trim().length === 0) {
+      return { error: "Could not extract text from PDF." };
+    }
+    return { textContent };
+  } catch (err: any) {
+    return { error: `PDF Parse Error: ${err.message}` };
+  }
+}
+
+// Node: Chunk Text
+async function chunkTextNode(state: AgentState): Promise<Partial<AgentState>> {
+  if (state.error) return {};
+  try {
+    const textSplitter = new RecursiveCharacterTextSplitter({
+      chunkSize: 1000,
+      chunkOverlap: 200,
+    });
+    const chunkDocs = await textSplitter.createDocuments([state.textContent]);
+    return { chunks: chunkDocs.map(c => c.pageContent) };
+  } catch (err: any) {
+    return { error: `Chunking Error: ${err.message}` };
+  }
+}
+
+// Node: Embed and Prepare Records
+async function embedNode(state: AgentState): Promise<Partial<AgentState>> {
+  if (state.error) return {};
+  try {
+    const embeddings = new GoogleGenerativeAIEmbeddings({
+      apiKey: state.geminiKey,
+      model: "text-embedding-004",
+    });
+
+    const records = [];
+    const batchSize = 10;
+    
+    // We process synchronously for simplicity, but wait inside a loop for API limits if needed
+    for (let i = 0; i < state.chunks.length; i += batchSize) {
+      const batch = state.chunks.slice(i, i + batchSize);
+      const batchPromises = batch.map(async (chunk, idx) => {
+        const vector = await embeddings.embedQuery(chunk);
+        return {
+          content: chunk,
+          embedding: vector,
+          metadata: {
+            project_id: state.projectId,
+            phase: 2,
+            role: "user",
+            type: "paper_chunk",
+            paper_id: state.paperId,
+            title: state.fileName,
+            source: "upload",
+            chunk_index: i + idx
+          }
+        };
+      });
+      const resolvedBatch = await Promise.all(batchPromises);
+      records.push(...resolvedBatch);
+    }
+    
+    return { recordsToInsert: records };
+  } catch (err: any) {
+    return { error: `Embedding Error: ${err.message}` };
+  }
+}
+
+// Node: Store in Supabase
+async function storeNode(state: AgentState): Promise<Partial<AgentState>> {
+  if (state.error) return {};
+  try {
+    let processedCount = 0;
+    const batchSize = 50; // Insert in batches to avoid Supabase limits
+    
+    for (let i = 0; i < state.recordsToInsert.length; i += batchSize) {
+      const batch = state.recordsToInsert.slice(i, i + batchSize);
+      const { error } = await supabase.from("Documents").insert(batch);
+      if (error) {
+        return { error: `Supabase Insert Error: ${error.message}` };
+      }
+      processedCount += batch.length;
+    }
+    
+    return { processedCount };
+  } catch (err: any) {
+    return { error: `Storage Error: ${err.message}` };
+  }
+}
+
+// Build LangGraph
+const workflow = new StateGraph<AgentState>({ channels: graphState as any })
+  .addNode("parse", parsePdfNode)
+  .addNode("chunk", chunkTextNode)
+  .addNode("embed", embedNode)
+  .addNode("store", storeNode)
+  .addEdge(START, "parse")
+  .addEdge("parse", "chunk")
+  .addEdge("chunk", "embed")
+  .addEdge("embed", "store")
+  .addEdge("store", END);
+
+const app = workflow.compile();
 
 export async function POST(req: Request) {
   try {
     const formData = await req.formData();
     const file = formData.get("file") as File;
-
-    if (!file) {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 });
-    }
-
-    // Check for OpenAI API key
-    if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === "your_openai_api_key_here") {
-      console.warn("No valid OPENAI_API_KEY found. Simulating successful upload for frontend testing.");
-      await new Promise(r => setTimeout(r, 2000));
-      return NextResponse.json({ success: true, mock: true });
-    }
-
-    // 1. Extract Text (Simplified for Edge/Node compat in this prototype)
-    // Normally you'd use WebPDFLoader or pdf-parse here.
-    const textContent = "Extracted text from the research paper would go here... Attention is all you need..."; 
+    const project_id = formData.get("project_id") as string;
     
-    // 2. Chunking
-    const textSplitter = new RecursiveCharacterTextSplitter({
-      chunkSize: 1000,
-      chunkOverlap: 200,
-    });
-    const docs = await textSplitter.createDocuments(
-      [textContent], 
-      [{ source: file.name, type: "research_paper" }]
-    );
+    const geminiKey = req.headers.get("x-gemini-key") || process.env.GEMINI_API_KEY;
 
-    // 3. Supabase Client Setup
-    const supabaseKey = process.env.SUPABASE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !supabaseKey) {
-       throw new Error("Supabase credentials missing.");
+    if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
+    if (!project_id) return NextResponse.json({ error: "Project ID is required" }, { status: 400 });
+    if (!geminiKey) return NextResponse.json({ error: "Gemini API key is required." }, { status: 401 });
+
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const paper_id = crypto.randomUUID();
+
+    // Run LangGraph Workflow
+    const initialState = {
+      fileBuffer: buffer,
+      fileName: file.name,
+      projectId: project_id,
+      geminiKey: geminiKey,
+      paperId: paper_id,
+      textContent: "",
+      chunks: [],
+      recordsToInsert: [],
+      processedCount: 0,
+    };
+
+    const finalState = (await app.invoke(initialState)) as unknown as AgentState;
+
+    if (finalState.error) {
+      throw new Error(finalState.error);
     }
-    const client = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, supabaseKey);
 
-    // 4. Embed and Store
-    await SupabaseVectorStore.fromDocuments(
-      docs,
-      new OpenAIEmbeddings(),
-      {
-        client,
-        tableName: "Documents",
-        queryName: "match_documents",
+    return NextResponse.json({ 
+      success: true, 
+      chunksProcessed: finalState.processedCount,
+      paper: {
+        id: paper_id,
+        title: file.name,
+        abstract: finalState.textContent.substring(0, 500) + "...", // Fake abstract
+        authors: "Uploaded PDF",
+        year: new Date().getFullYear(),
+        source: "upload"
       }
-    );
-
-    return NextResponse.json({ success: true, chunksProcessed: docs.length });
+    });
   } catch (error: any) {
-    console.error("Upload API Error:", error);
+    console.error("Upload API Error (LangGraph):", error);
     return NextResponse.json({ error: error.message || "Failed to process PDF" }, { status: 500 });
   }
 }

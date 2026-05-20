@@ -8,11 +8,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 
 interface QuestionValidatorProps {
+  projectId?: string;
   problemContext: any;
   onQuestionValidated: (data: any) => void;
 }
 
-export default function QuestionValidator({ problemContext, onQuestionValidated }: QuestionValidatorProps) {
+export default function QuestionValidator({ projectId, problemContext, onQuestionValidated }: QuestionValidatorProps) {
   const [question, setQuestion] = useState(problemContext?.suggested_question || "");
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<any>(null);
@@ -23,10 +24,14 @@ export default function QuestionValidator({ problemContext, onQuestionValidated 
     setResult(null);
     
     try {
+      const geminiKey = projectId ? localStorage.getItem(`plotoris_gemini_key_${projectId}`) || "" : "";
+      const headers: any = { "Content-Type": "application/json" };
+      if (geminiKey) headers["x-gemini-key"] = geminiKey;
+
       const res = await fetch("/api/phase1/validate-question", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ research_question: question, problem_context: problemContext?.statement })
+        headers,
+        body: JSON.stringify({ research_question: question, problem_context: problemContext?.statement, project_id: projectId })
       });
       const data = await res.json();
       setResult(data);

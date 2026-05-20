@@ -20,7 +20,7 @@ import PhaseSevenView from "@/components/chat/phase7-view";
 import PhaseEightView from "@/components/chat/phase8-view";
 import PhaseNineView from "@/components/chat/phase9-view";
 import { authHeaders } from "@/lib/auth";
-import { Project, MOCK_PROJECTS } from "@/lib/data/projects-data";
+import { Project } from "@/lib/data/projects-data";
 
 const sampleResponse = `Based on my analysis of recent quantum computing research papers, here are the key findings:
 
@@ -95,12 +95,21 @@ export default function ChatPage() {
         setActiveProject(null);
     }, []);
 
-    const handleOpenProject = (projectId: string, projectName: string) => {
-        const fullProject = MOCK_PROJECTS.find(p => p.id === projectId) || MOCK_PROJECTS[0];
-        setActiveProject(fullProject);
-        setActiveChat(""); // Clear active chat when opening dashboard
-        setMessages([]);
-        setViewMode("dashboard");
+    const handleOpenProject = async (projectId: string, projectName: string) => {
+        try {
+            const res = await fetch(`/api/projects/${projectId}/dashboard`, { headers: authHeaders() });
+            if (res.ok) {
+                const json = await res.json();
+                setActiveProject(json.data);
+                setActiveChat(""); // Clear active chat when opening dashboard
+                setMessages([]);
+                setViewMode("dashboard");
+            } else {
+                console.error("Failed to fetch dashboard");
+            }
+        } catch (err) {
+            console.error(err);
+        }
     };
 
     const handleSelectPhase = (phaseId: string) => {
@@ -232,7 +241,7 @@ export default function ChatPage() {
                         <motion.div key="chat" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                             className="flex-1 flex flex-col min-h-0 overflow-hidden">
                             {activeChat === "p1" ? (
-                                <PhaseOneView />
+                                <PhaseOneView projectId={activeProject?.id} />
                             ) : activeChat === "p2" ? (
                                 <PhaseTwoView />
                             ) : activeChat === "p3" ? (

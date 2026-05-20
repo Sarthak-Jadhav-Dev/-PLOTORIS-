@@ -1,59 +1,93 @@
 import { NextResponse } from "next/server";
+import { ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { supabase } from "@/lib/supabase";
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { domain } = body;
+    const { domain, project_id, context } = body;
+
+    const geminiKey = req.headers.get("x-gemini-key") || process.env.GEMINI_API_KEY;
 
     if (!domain) {
       return NextResponse.json({ error: "Domain is required" }, { status: 400 });
     }
+    if (!geminiKey) {
+      return NextResponse.json({ error: "Gemini API key is required." }, { status: 401 });
+    }
 
-    // Simulate AI processing delay
-    await new Promise((resolve) => setTimeout(resolve, 3000));
+    const model = new ChatGoogleGenerativeAI({
+      apiKey: geminiKey,
+      model: "gemini-2.0-flash",
+      temperature: 0.7, // Higher temp for brainstorming
+    });
 
-    const mockResponse = {
-      problems: [
-        {
-          id: crypto.randomUUID(),
-          statement: `Investigating the impact of attention mechanisms in predicting rare anomalies within ${domain}.`,
-          novelty_score: 8,
-          feasibility_score: 7,
-          rationale: `Current approaches in ${domain} struggle with class imbalance. An attention-based approach could selectively focus on under-represented features.`,
-          suggested_question: `How do multi-head attention mechanisms compare to standard CNNs when detecting rare anomalies in ${domain}?`,
-          domain_tags: ["Deep Learning", "Anomaly Detection", domain],
-          key_concepts: ["Attention Mechanisms", "Class Imbalance", "Predictive Modeling"],
-          potential_methods: ["Comparative Analysis", "Ablation Studies"]
-        },
-        {
-          id: crypto.randomUUID(),
-          statement: `Evaluating cross-domain transfer learning efficiency for resource-constrained edge devices in ${domain}.`,
-          novelty_score: 9,
-          feasibility_score: 6,
-          rationale: `Deploying models for ${domain} on edge devices is limited by computational power. Cross-domain transfer could alleviate training costs.`,
-          suggested_question: `What is the minimal viable parameter count for a transfer-learned model to maintain >90% accuracy on edge devices in ${domain}?`,
-          domain_tags: ["Edge Computing", "Transfer Learning", domain],
-          key_concepts: ["Model Pruning", "Edge Inference", "Resource Constraints"],
-          potential_methods: ["Hardware Simulation", "Benchmarking"]
-        },
-        {
-          id: crypto.randomUUID(),
-          statement: `Analyzing longitudinal bias propagation in automated decision systems applied to ${domain}.`,
-          novelty_score: 7,
-          feasibility_score: 8,
-          rationale: `While static bias in ${domain} is well-studied, how bias compounds over time in continuous learning systems remains a gap.`,
-          suggested_question: `At what rate does demographic bias compound over 10 epochs of continuous learning in an automated system for ${domain}?`,
-          domain_tags: ["Algorithmic Fairness", "Continuous Learning", domain],
-          key_concepts: ["Bias Compounding", "Longitudinal Study", "Fairness Metrics"],
-          potential_methods: ["Longitudinal Simulation", "Statistical Parity Tracking"]
-        }
-      ],
-      domain_analysis: `The domain of ${domain} is rapidly evolving, with recent shifts towards efficiency and fairness. However, gaps remain in longitudinal studies and edge deployment.`,
-      recommended_next_steps: "Select a problem statement that aligns with your available computational resources and dataset access."
-    };
+    const prompt = `
+      You are an expert academic research advisor.
+      Generate 3 highly novel and feasible academic research problems within the domain of "${domain}".
+      ${context ? `Additional context from user: ${context}` : ''}
 
-    return NextResponse.json(mockResponse);
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to generate problems" }, { status: 500 });
+      Provide your response STRICTLY as a JSON object with this exact structure:
+      {
+        "problems": [
+          {
+            "id": string (unique uuid),
+            "statement": string (the problem statement),
+            "novelty_score": number (0-10),
+            "feasibility_score": number (0-10),
+            "rationale": string (why this is important),
+            "suggested_question": string (a specific research question),
+            "domain_tags": string[] (3 tags),
+            "key_concepts": string[] (3 concepts),
+            "potential_methods": string[] (2-3 methods)
+          }
+        ],
+        "domain_analysis": string (a brief 2 sentence analysis of current trends in this domain),
+        "recommended_next_steps": string (1 sentence)
+      }
+
+      CRITICAL: Respond ONLY with raw JSON. No markdown blocks.
+    `;
+
+    const aiResponse = await model.invoke(prompt);
+    let parsedResult;
+    try {
+      let contentStr = aiResponse.content.toString().trim();
+      const jsonMatch = contentStr.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        parsedResult = JSON.parse(jsonMatch[0]);
+      } else {
+        parsedResult = JSON.parse(contentStr);
+      }
+    } catch (parseErr) {
+      console.error("Parse Error. LLM returned:", aiResponse.content.toString());
+      return NextResponse.json({ error: "Failed to parse AI response." }, { status: 500 });
+    }
+
+    // Embed and store
+    if (project_id) {
+      try {
+        const embeddings = new GoogleGenerativeAIEmbeddings({
+          apiKey: geminiKey,
+          model: "text-embedding-004",
+        });
+
+        const textToEmbed = `Phase 1 Generated Problems for Domain: ${domain}. Context: ${context}. Response: ${JSON.stringify(parsedResult.problems.map((p: any) => p.statement))}`;
+        const vector = await embeddings.embedQuery(textToEmbed);
+
+        await supabase.from("Documents").insert({
+          content: textToEmbed,
+          embedding: vector,
+          metadata: { project_id, phase: 1, role: "assistant", type: "problem_generation" }
+        });
+      } catch (err) {
+        console.warn("Embedding failed", err);
+      }
+    }
+
+    return NextResponse.json(parsedResult);
+  } catch (error: any) {
+    console.error("Gemini API Error:", error);
+    return NextResponse.json({ error: error.message || "Failed to generate problems" }, { status: 500 });
   }
 }

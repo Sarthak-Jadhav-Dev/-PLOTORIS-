@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Settings, Key, Trash2, ShieldAlert, Loader2, CheckCircle2 } from "lucide-react";
 import {
   Dialog,
@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 interface ProjectSettingsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  project: { name: string; description: string; dueDate: string } | null;
+  project: { id: string; name: string; description: string; dueDate: string } | null;
 }
 
 export default function ProjectSettingsDialog({ open, onOpenChange, project }: ProjectSettingsDialogProps) {
@@ -28,9 +28,23 @@ export default function ProjectSettingsDialog({ open, onOpenChange, project }: P
   // API State
   const [apiKey, setApiKey] = useState("");
 
+  useEffect(() => {
+    if (project?.id) {
+      const storedKey = localStorage.getItem(`plotoris_gemini_key_${project.id}`);
+      if (storedKey) setApiKey(storedKey);
+    }
+  }, [project?.id]);
+
   const handleSave = async () => {
     setIsSaving(true);
+    // Simulate DB save for general details
     await new Promise(r => setTimeout(r, 800));
+    
+    // Save API key to local storage
+    if (project?.id) {
+      localStorage.setItem(`plotoris_gemini_key_${project.id}`, apiKey);
+    }
+
     setIsSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -112,15 +126,15 @@ export default function ProjectSettingsDialog({ open, onOpenChange, project }: P
                 
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-[#888] uppercase tracking-wider">OpenAI API Key</label>
+                    <label className="text-xs font-bold text-[#888] uppercase tracking-wider">Gemini API Key</label>
                     <input 
                       type="password"
                       value={apiKey}
                       onChange={(e) => setApiKey(e.target.value)}
-                      placeholder="sk-..."
+                      placeholder="AIza..."
                       className="w-full bg-[#050505] border border-[#333] text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 transition-colors"
                     />
-                    <p className="text-[10px] text-[#555]">Keys are encrypted at rest and never stored in plain text.</p>
+                    <p className="text-[10px] text-[#555]">Keys are stored securely in your browser's local storage.</p>
                   </div>
                 </div>
               </div>

@@ -1,18 +1,30 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Plus,
     MessageSquare,
-    Settings,
     LogOut,
     ChevronLeft,
     Search,
     MoreHorizontal,
     Trash2,
     Edit3,
+    UserCircle,
+    Sliders,
+    Key,
+    Home,
+    FileText,
+    BookOpen,
+    Lightbulb,
+    PenTool,
+    Database,
+    BarChart2,
+    FileEdit,
+    Send
 } from "lucide-react";
+import Link from "next/link";
 
 interface ChatSidebarProps {
     isOpen: boolean;
@@ -20,6 +32,9 @@ interface ChatSidebarProps {
     activeChat: string;
     onSelectChat: (id: string) => void;
     onNewChat: () => void;
+    onGoHome?: () => void;
+    onGoDashboard?: () => void;
+    activeProject?: { id: string; name: string } | null;
 }
 
 const chatHistory = [
@@ -47,14 +62,52 @@ const chatHistory = [
     },
 ];
 
+const RESEARCH_PHASES = [
+    { id: "p1", title: "Identification of Problem", icon: FileText },
+    { id: "p2", title: "Study Existing Papers", icon: BookOpen },
+    { id: "p3", title: "Formulating Hypothesis", icon: Lightbulb },
+    { id: "p4", title: "Research Design", icon: PenTool },
+    { id: "p5", title: "Data Collection & Analysis", icon: Database },
+    { id: "p6", title: "Interpretation of Results", icon: BarChart2 },
+    { id: "p7", title: "Drafting Research Papers", icon: FileEdit },
+    { id: "p8", title: "Publication", icon: Send },
+];
+
 export default function ChatSidebar({
     isOpen,
     onToggle,
     activeChat,
     onSelectChat,
     onNewChat,
+    onGoHome,
+    onGoDashboard,
+    activeProject,
 }: ChatSidebarProps) {
     const [hoveredChat, setHoveredChat] = useState<string | null>(null);
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [userName, setUserName] = useState("John Doe");
+    const [userInitials, setUserInitials] = useState("JD");
+
+    // Extract user info from token
+    useEffect(() => {
+        const token = localStorage.getItem("token");
+        if (token) {
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                if (payload.name) {
+                    setUserName(payload.name);
+                    // Get initials
+                    const words = payload.name.split(' ');
+                    const initials = words.length > 1 
+                        ? words[0][0] + words[words.length - 1][0]
+                        : words[0].substring(0, 2);
+                    setUserInitials(initials.toUpperCase());
+                }
+            } catch {
+                console.error("Failed to decode token");
+            }
+        }
+    }, []);
 
     return (
         <>
@@ -79,85 +132,167 @@ export default function ChatSidebar({
                     opacity: isOpen ? 1 : 0,
                 }}
                 transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-                className={`fixed lg:relative top-0 left-0 h-full z-50 lg:z-auto overflow-hidden bg-surface border-r border-border flex flex-col`}
+                className={`fixed lg:relative top-0 left-0 h-full z-50 lg:z-auto overflow-hidden bg-[#0d0d0d] border-r border-[#1a1a1a] flex flex-col`}
             >
                 <div className="flex flex-col h-full w-[300px]">
                     {/* Header */}
-                    <div className="p-4 flex items-center justify-between border-b border-border">
+                    <div className="p-3 border-b border-[#1a1a1a] space-y-2">
+                        {/* Home Button */}
                         <button
-                            onClick={onNewChat}
-                            className="flex-1 flex items-center gap-3 px-4 py-3 rounded-xl border border-border bg-surface-raised hover:border-orange-primary/30 hover:bg-surface-overlay transition-all duration-300 group"
+                            onClick={onGoHome}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[#1a1a1a] transition-all duration-200 group"
                         >
-                            <Plus size={18} className="text-orange-primary" />
-                            <span className="text-sm font-medium">New Chat</span>
+                            <Home size={16} className="text-[#555] group-hover:text-orange-primary transition-colors" />
+                            <span className="text-sm text-[#777] group-hover:text-white transition-colors">Home</span>
                         </button>
-                        <button
-                            onClick={onToggle}
-                            className="ml-3 p-2 rounded-lg hover:bg-surface-raised transition-colors lg:hidden"
-                        >
-                            <ChevronLeft size={18} />
-                        </button>
+                        {activeProject && onGoDashboard && (
+                            <button
+                                onClick={onGoDashboard}
+                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[#1a1a1a] transition-all duration-200 group"
+                            >
+                                <FileText size={16} className="text-[#555] group-hover:text-orange-primary transition-colors" />
+                                <span className="text-sm text-[#777] group-hover:text-white transition-colors">Dashboard</span>
+                            </button>
+                        )}
+                        <div className="flex items-center gap-2">
+                            {!activeProject && (
+                                <button
+                                    onClick={onNewChat}
+                                    className="flex-1 flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-[#222] bg-[#141414] hover:border-orange-primary/30 hover:bg-[#1a1a1a] transition-all duration-300 group text-white"
+                                >
+                                    <Plus size={16} className="text-orange-primary" />
+                                    <span className="text-sm font-medium">New Chat</span>
+                                </button>
+                            )}
+                            <button
+                                onClick={onToggle}
+                                className="p-2 rounded-lg hover:bg-[#1a1a1a] transition-colors lg:hidden text-white"
+                            >
+                                <ChevronLeft size={18} />
+                            </button>
+                        </div>
                     </div>
 
                     {/* Search */}
                     <div className="p-4 pb-2">
                         <div className="relative">
-                            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+                            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#555]" />
                             <input
                                 type="text"
-                                placeholder="Search chats..."
-                                className="w-full pl-9 pr-3 py-2.5 rounded-lg bg-surface-raised border border-border text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-orange-primary/30 transition-all duration-300"
+                                placeholder={activeProject ? "Search project..." : "Search chats..."}
+                                className="w-full pl-9 pr-3 py-2.5 rounded-lg bg-[#141414] border border-[#222] text-sm text-white placeholder:text-[#555] focus:outline-none focus:border-orange-primary/30 transition-all duration-300"
                             />
                         </div>
                     </div>
 
-                    {/* Chat List */}
+                    {/* Chat List / Project Phases */}
                     <div className="flex-1 overflow-y-auto px-3 pb-4">
-                        {chatHistory.map((group) => (
-                            <div key={group.category} className="mb-4">
-                                <p className="text-xs text-text-muted font-medium uppercase tracking-wider px-3 py-2">
-                                    {group.category}
+                        {activeProject ? (
+                            <div className="mb-4">
+                                <p className="text-xs text-[#555] font-semibold uppercase tracking-wider px-3 py-2 mt-2">
+                                    Research Methodology
                                 </p>
-                                {group.chats.map((chat) => (
-                                    <button
-                                        key={chat.id}
-                                        onClick={() => onSelectChat(chat.id)}
-                                        onMouseEnter={() => setHoveredChat(chat.id)}
-                                        onMouseLeave={() => setHoveredChat(null)}
-                                        className={`w-full text-left px-3 py-3 rounded-xl mb-1 flex items-center gap-3 group transition-all duration-200 ${activeChat === chat.id
-                                                ? "bg-surface-overlay border border-orange-primary/20 text-text-primary"
-                                                : "hover:bg-surface-raised text-text-secondary hover:text-text-primary"
-                                            }`}
-                                    >
-                                        <MessageSquare size={15} className={activeChat === chat.id ? "text-orange-primary" : "text-text-muted"} />
-                                        <span className="text-sm truncate flex-1">{chat.title}</span>
-                                        {hoveredChat === chat.id && (
-                                            <div className="flex items-center gap-1">
-                                                <button className="p-1 rounded hover:bg-surface-overlay transition-colors" onClick={(e) => e.stopPropagation()}>
-                                                    <Edit3 size={12} className="text-text-muted" />
-                                                </button>
-                                                <button className="p-1 rounded hover:bg-surface-overlay transition-colors" onClick={(e) => e.stopPropagation()}>
-                                                    <Trash2 size={12} className="text-text-muted hover:text-red-400" />
-                                                </button>
-                                            </div>
-                                        )}
-                                    </button>
-                                ))}
+                                {RESEARCH_PHASES.map((phase) => {
+                                    const Icon = phase.icon;
+                                    return (
+                                        <button
+                                            key={phase.id}
+                                            onClick={() => onSelectChat(phase.id)}
+                                            className={`w-full text-left px-3 py-3 rounded-xl mb-1 flex items-center gap-3 group transition-all duration-200 ${activeChat === phase.id
+                                                    ? "bg-[#1a1a1a] border border-orange-primary/20 text-white"
+                                                    : "hover:bg-[#141414] text-[#888] hover:text-white"
+                                                }`}
+                                        >
+                                            <Icon size={15} className={activeChat === phase.id ? "text-orange-primary" : "text-[#555] group-hover:text-[#888]"} />
+                                            <span className="text-sm truncate flex-1 leading-snug">{phase.title}</span>
+                                        </button>
+                                    );
+                                })}
                             </div>
-                        ))}
+                        ) : (
+                            chatHistory.map((group) => (
+                                <div key={group.category} className="mb-4">
+                                    <p className="text-xs text-[#555] font-semibold uppercase tracking-wider px-3 py-2 mt-2">
+                                        {group.category}
+                                    </p>
+                                    {group.chats.map((chat) => (
+                                        <button
+                                            key={chat.id}
+                                            onClick={() => onSelectChat(chat.id)}
+                                            onMouseEnter={() => setHoveredChat(chat.id)}
+                                            onMouseLeave={() => setHoveredChat(null)}
+                                            className={`w-full text-left px-3 py-3 rounded-xl mb-1 flex items-center gap-3 group transition-all duration-200 ${activeChat === chat.id
+                                                    ? "bg-[#1a1a1a] border border-orange-primary/20 text-white"
+                                                    : "hover:bg-[#141414] text-[#888] hover:text-white"
+                                                }`}
+                                        >
+                                            <MessageSquare size={15} className={activeChat === chat.id ? "text-orange-primary" : "text-[#555]"} />
+                                            <span className="text-sm truncate flex-1">{chat.title}</span>
+                                            {hoveredChat === chat.id && (
+                                                <div className="flex items-center gap-1">
+                                                    <button className="p-1 rounded hover:bg-[#222] transition-colors" onClick={(e) => e.stopPropagation()}>
+                                                        <Edit3 size={12} className="text-[#555]" />
+                                                    </button>
+                                                    <button className="p-1 rounded hover:bg-[#222] transition-colors" onClick={(e) => e.stopPropagation()}>
+                                                        <Trash2 size={12} className="text-[#555] hover:text-red-400" />
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+                            ))
+                        )}
                     </div>
 
-                    {/* Footer */}
-                    <div className="p-4 border-t border-border">
-                        <div className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-surface-raised transition-colors cursor-pointer group">
+                    {/* Footer with Dropdown Menu */}
+                    <div className="p-4 border-t border-[#1a1a1a] relative">
+                        <AnimatePresence>
+                            {isMenuOpen && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="absolute bottom-full left-4 right-4 mb-2 bg-surface-raised border border-border shadow-2xl rounded-xl overflow-hidden z-50 p-1"
+                                >
+                                    <div className="flex flex-col">
+                                        <Link href="/settings/account" className="flex items-center gap-3 px-3 py-2.5 text-sm text-text-primary hover:bg-surface-overlay rounded-lg transition-colors w-full text-left">
+                                            <UserCircle size={16} className="text-text-muted" /> Account
+                                        </Link>
+                                        <Link href="/settings/preferences" className="flex items-center gap-3 px-3 py-2.5 text-sm text-text-primary hover:bg-surface-overlay rounded-lg transition-colors w-full text-left">
+                                            <Sliders size={16} className="text-text-muted" /> Preferences
+                                        </Link>
+                                        <Link href="/settings/api-keys" className="flex items-center gap-3 px-3 py-2.5 text-sm text-text-primary hover:bg-surface-overlay rounded-lg transition-colors w-full text-left">
+                                            <Key size={16} className="text-text-muted" /> API Keys
+                                        </Link>
+                                        <div className="h-px bg-border my-1" />
+                                        <button 
+                                            onClick={() => {
+                                                localStorage.removeItem("token");
+                                                window.location.href = "/login";
+                                            }}
+                                            className="flex items-center gap-3 px-3 py-2.5 text-sm text-red-400 hover:bg-red-500/10 rounded-lg transition-colors w-full text-left"
+                                        >
+                                            <LogOut size={16} /> Log out
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
+                        <div 
+                            onClick={() => setIsMenuOpen(!isMenuOpen)}
+                            className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-colors cursor-pointer group ${isMenuOpen ? "bg-[#1a1a1a]" : "hover:bg-[#141414]"}`}
+                        >
                             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-orange-primary to-orange-dark flex items-center justify-center text-white text-xs font-bold">
-                                JD
+                                {userInitials}
                             </div>
                             <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium truncate">John Doe</p>
-                                <p className="text-xs text-text-muted truncate">Free Plan</p>
+                                <p className="text-sm font-medium truncate text-white">{userName}</p>
+                                <p className="text-xs text-[#666] truncate">Free Plan</p>
                             </div>
-                            <MoreHorizontal size={16} className="text-text-muted opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <MoreHorizontal size={16} className={`text-[#555] transition-opacity ${isMenuOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`} />
                         </div>
                     </div>
                 </div>

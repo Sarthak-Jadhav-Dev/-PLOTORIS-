@@ -5,6 +5,7 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, Mail, Lock, User, ArrowRight, CheckCircle2 } from "lucide-react";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 const benefits = [
     "Access to 2.5M+ research papers",
@@ -14,7 +15,84 @@ const benefits = [
 ];
 
 export default function SignupPage() {
+    const router = useRouter();
     const [showPassword, setShowPassword] = useState(false);
+    
+    // Form state
+    const [name, setName] = useState("");
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [otp, setOtp] = useState("");
+    
+    // UI state
+    const [step, setStep] = useState<1 | 2>(1);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState("");
+    const [successMsg, setSuccessMsg] = useState("");
+
+    const handleRegister = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        setError("");
+        
+        try {
+            const res = await fetch("/api/auth/register", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name, email, password }),
+            });
+            
+            const data = await res.json();
+            
+            if (!res.ok) {
+                throw new Error(data.message || "Registration failed");
+            }
+            
+            setStep(2);
+            setSuccessMsg("OTP sent to your email. Please check your inbox (or Ethereal URL in backend logs).");
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : String(err));
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const handleVerifyOtp = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        setError("");
+        
+        try {
+            const res = await fetch("/api/auth/verify-otp", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, otp }),
+            });
+            
+            const data = await res.json();
+            
+            if (!res.ok) {
+                throw new Error(data.message || "OTP Verification failed");
+            }
+            
+            // Save token and user info
+            if (data.token) {
+                localStorage.setItem("token", data.token);
+            }
+            if (data.user) {
+                localStorage.setItem("user", JSON.stringify(data.user));
+            }
+            
+            setSuccessMsg("Account verified successfully! Redirecting...");
+            setTimeout(() => {
+                router.push("/onboarding");
+            }, 2000);
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : String(err));
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     return (
         <div className="min-h-screen flex">
@@ -126,8 +204,12 @@ export default function SignupPage() {
                         <div className="h-px flex-1 bg-border" />
                     </div>
 
+                    {error && <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-500 text-sm">{error}</div>}
+                    {successMsg && <div className="mb-4 p-3 bg-green-500/10 border border-green-500/50 rounded-lg text-green-500 text-sm">{successMsg}</div>}
+
                     {/* Form */}
-                    <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
+                    {step === 1 ? (
+                    <form className="space-y-5" onSubmit={handleRegister}>
                         {/* Full Name */}
                         <div>
                             <label className="block text-sm font-medium text-text-secondary mb-2">
@@ -138,6 +220,9 @@ export default function SignupPage() {
                                 <input
                                     type="text"
                                     placeholder="John Doe"
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                    required
                                     className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-surface-raised border border-border text-text-primary placeholder:text-text-muted text-sm focus:outline-none focus:border-orange-primary/50 focus:ring-1 focus:ring-orange-primary/20 transition-all duration-300"
                                 />
                             </div>
@@ -153,6 +238,9 @@ export default function SignupPage() {
                                 <input
                                     type="email"
                                     placeholder="you@university.edu"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    required
                                     className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-surface-raised border border-border text-text-primary placeholder:text-text-muted text-sm focus:outline-none focus:border-orange-primary/50 focus:ring-1 focus:ring-orange-primary/20 transition-all duration-300"
                                 />
                             </div>
@@ -168,6 +256,9 @@ export default function SignupPage() {
                                 <input
                                     type={showPassword ? "text" : "password"}
                                     placeholder="Min. 8 characters"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    required
                                     className="w-full pl-12 pr-12 py-3.5 rounded-xl bg-surface-raised border border-border text-text-primary placeholder:text-text-muted text-sm focus:outline-none focus:border-orange-primary/50 focus:ring-1 focus:ring-orange-primary/20 transition-all duration-300"
                                 />
                                 <button
@@ -202,14 +293,49 @@ export default function SignupPage() {
                         {/* Submit */}
                         <button
                             type="submit"
-                            className="btn-primary w-full py-4! rounded-xl! text-base! group"
+                            disabled={isLoading}
+                            className="btn-primary w-full py-4! rounded-xl! text-base! group disabled:opacity-70"
                         >
                             <span className="flex items-center justify-center gap-2">
-                                Create Account
+                                {isLoading ? "Processing..." : "Create Account"}
                                 <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
                             </span>
                         </button>
                     </form>
+                    ) : (
+                    <form className="space-y-5" onSubmit={handleVerifyOtp}>
+                        <div>
+                            <label className="block text-sm font-medium text-text-secondary mb-2">
+                                Enter 6-digit OTP
+                            </label>
+                            <div className="relative">
+                                <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" />
+                                <input
+                                    type="text"
+                                    placeholder="123456"
+                                    value={otp}
+                                    onChange={(e) => setOtp(e.target.value)}
+                                    required
+                                    maxLength={6}
+                                    className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-surface-raised border border-border text-text-primary placeholder:text-text-muted text-sm focus:outline-none focus:border-orange-primary/50 focus:ring-1 focus:ring-orange-primary/20 transition-all duration-300"
+                                />
+                            </div>
+                        </div>
+                        <button
+                            type="submit"
+                            disabled={isLoading}
+                            className="btn-primary w-full py-4! rounded-xl! text-base! group disabled:opacity-70"
+                        >
+                            <span className="flex items-center justify-center gap-2">
+                                {isLoading ? "Verifying..." : "Verify OTP"}
+                                <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                            </span>
+                        </button>
+                        <button type="button" onClick={() => setStep(1)} className="text-sm text-text-secondary mt-4 block text-center w-full hover:text-orange-primary">
+                            Back to Signup
+                        </button>
+                    </form>
+                    )}
 
                     {/* Login Link */}
                     <p className="text-center text-sm text-text-secondary mt-8">

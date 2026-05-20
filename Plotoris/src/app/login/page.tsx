@@ -5,9 +5,54 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, Mail, Lock, ArrowRight } from "lucide-react";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
+    const router = useRouter();
     const [showPassword, setShowPassword] = useState(false);
+    
+    // Form state
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    
+    // UI state
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState("");
+    const [successMsg, setSuccessMsg] = useState("");
+
+    const handleLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsLoading(true);
+        setError("");
+        
+        try {
+            const res = await fetch("/api/auth/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, password }),
+            });
+            
+            const data = await res.json();
+            
+            if (!res.ok) {
+                throw new Error(data.message || "Login failed");
+            }
+            
+            // Store auth data in localStorage
+            localStorage.setItem("token", data.token);
+            localStorage.setItem("user", JSON.stringify(data.user));
+            
+            setSuccessMsg("Login successful! Redirecting...");
+            
+            setTimeout(() => {
+                router.push("/chat");
+            }, 1000);
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     return (
         <div className="min-h-screen flex">
@@ -148,8 +193,11 @@ export default function LoginPage() {
                         <div className="h-px flex-1 bg-border" />
                     </div>
 
+                    {error && <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-500 text-sm">{error}</div>}
+                    {successMsg && <div className="mb-4 p-3 bg-green-500/10 border border-green-500/50 rounded-lg text-green-500 text-sm">{successMsg}</div>}
+
                     {/* Form */}
-                    <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
+                    <form className="space-y-5" onSubmit={handleLogin}>
                         {/* Email */}
                         <div>
                             <label className="block text-sm font-medium text-text-secondary mb-2">
@@ -160,6 +208,9 @@ export default function LoginPage() {
                                 <input
                                     type="email"
                                     placeholder="you@example.com"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    required
                                     className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-surface-raised border border-border text-text-primary placeholder:text-text-muted text-sm focus:outline-none focus:border-orange-primary/50 focus:ring-1 focus:ring-orange-primary/20 transition-all duration-300"
                                 />
                             </div>
@@ -180,6 +231,9 @@ export default function LoginPage() {
                                 <input
                                     type={showPassword ? "text" : "password"}
                                     placeholder="••••••••"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    required
                                     className="w-full pl-12 pr-12 py-3.5 rounded-xl bg-surface-raised border border-border text-text-primary placeholder:text-text-muted text-sm focus:outline-none focus:border-orange-primary/50 focus:ring-1 focus:ring-orange-primary/20 transition-all duration-300"
                                 />
                                 <button
@@ -207,10 +261,11 @@ export default function LoginPage() {
                         {/* Submit */}
                         <button
                             type="submit"
-                            className="btn-primary w-full py-4! rounded-xl! text-base! group"
+                            disabled={isLoading}
+                            className="btn-primary w-full py-4! rounded-xl! text-base! group disabled:opacity-70"
                         >
                             <span className="flex items-center justify-center gap-2">
-                                Sign In
+                                {isLoading ? "Signing In..." : "Sign In"}
                                 <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
                             </span>
                         </button>

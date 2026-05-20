@@ -59,9 +59,11 @@ function timeAgo(dateStr: string): string {
 
 interface ProjectsHomeViewProps {
   onOpenProject: (projectId: string, projectName: string) => void;
+  onCreated?: () => void;
+  onInvitationAccepted?: () => void;
 }
 
-export default function ProjectsHomeView({ onOpenProject }: ProjectsHomeViewProps) {
+export default function ProjectsHomeView({ onOpenProject, onCreated, onInvitationAccepted }: ProjectsHomeViewProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -93,7 +95,7 @@ export default function ProjectsHomeView({ onOpenProject }: ProjectsHomeViewProp
 
         {/* Header */}
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="mb-10">
-          <p className="text-[#666] text-sm mb-1">Good {getGreeting()}, {user?.name?.split(" ")[0] ?? "Researcher"} 👋</p>
+          <p suppressHydrationWarning className="text-[#666] text-sm mb-1">Good {getGreeting()}, {user?.name?.split(" ")[0] ?? "Researcher"} 👋</p>
           <h1 className="text-3xl font-bold text-white">Your Research Projects</h1>
         </motion.div>
 

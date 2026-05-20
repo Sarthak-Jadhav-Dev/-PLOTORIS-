@@ -11,7 +11,16 @@ import ChatInput from "@/components/chat/chat-input";
 import ProjectsHomeView from "@/components/chat/projects-home-view";
 import ProjectDashboardView from "@/components/chat/project-dashboard-view";
 import NotificationsPanel from "@/components/chat/notifications-panel";
+import PhaseOneView from "@/components/chat/phase1-view";
+import PhaseTwoView from "@/components/chat/phase2-view";
+import PhaseThreeView from "@/components/chat/phase3-view";
+import PhaseFourView from "@/components/chat/phase4-view";
+import PhaseFiveView from "@/components/chat/phase5-view";
+import PhaseSevenView from "@/components/chat/phase7-view";
+import PhaseEightView from "@/components/chat/phase8-view";
+import PhaseNineView from "@/components/chat/phase9-view";
 import { authHeaders } from "@/lib/auth";
+import { Project, MOCK_PROJECTS } from "@/lib/data/projects-data";
 
 const sampleResponse = `Based on my analysis of recent quantum computing research papers, here are the key findings:
 
@@ -36,7 +45,7 @@ export default function ChatPage() {
     const [activeChat, setActiveChat] = useState("1");
     const [messages, setMessages] = useState<Message[]>([]);
     const [viewMode, setViewMode] = useState<ViewMode>("home");
-    const [activeProject, setActiveProject] = useState<{ id: string; name: string } | null>(null);
+    const [activeProject, setActiveProject] = useState<Project | null>(null);
 
     // Notifications state
     const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -87,7 +96,8 @@ export default function ChatPage() {
     }, []);
 
     const handleOpenProject = (projectId: string, projectName: string) => {
-        setActiveProject({ id: projectId, name: projectName });
+        const fullProject = MOCK_PROJECTS.find(p => p.id === projectId) || MOCK_PROJECTS[0];
+        setActiveProject(fullProject);
         setActiveChat(""); // Clear active chat when opening dashboard
         setMessages([]);
         setViewMode("dashboard");
@@ -103,6 +113,12 @@ export default function ChatPage() {
         setViewMode("home");
         setActiveProject(null);
     };
+
+    // Refresh projects list (called after accepting invitation or creating project)
+    const [projectsRefreshKey, setProjectsRefreshKey] = useState(0);
+    const refreshProjects = useCallback(() => {
+        setProjectsRefreshKey(prev => prev + 1);
+    }, []);
 
     return (
         <div className="h-screen flex bg-[#050505]">
@@ -200,7 +216,12 @@ export default function ChatPage() {
                     {viewMode === "home" ? (
                         <motion.div key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                             className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                            <ProjectsHomeView onOpenProject={handleOpenProject} />
+                            <ProjectsHomeView
+                                key={projectsRefreshKey}
+                                onOpenProject={handleOpenProject}
+                                onCreated={refreshProjects}
+                                onInvitationAccepted={refreshProjects}
+                            />
                         </motion.div>
                     ) : viewMode === "dashboard" ? (
                         <motion.div key="dashboard" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -210,8 +231,28 @@ export default function ChatPage() {
                     ) : (
                         <motion.div key="chat" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                             className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                            <ChatMessages messages={messages} />
-                            <ChatInput onSend={handleSend} />
+                            {activeChat === "p1" ? (
+                                <PhaseOneView />
+                            ) : activeChat === "p2" ? (
+                                <PhaseTwoView />
+                            ) : activeChat === "p3" ? (
+                                <PhaseThreeView />
+                            ) : activeChat === "p4" ? (
+                                <PhaseFourView />
+                            ) : activeChat === "p5" ? (
+                                <PhaseFiveView />
+                            ) : activeChat === "p7" ? (
+                                <PhaseSevenView />
+                            ) : activeChat === "p8" ? (
+                                <PhaseEightView />
+                            ) : activeChat === "p9" ? (
+                                <PhaseNineView />
+                            ) : (
+                                <>
+                                    <ChatMessages messages={messages} />
+                                    <ChatInput onSend={handleSend} />
+                                </>
+                            )}
                         </motion.div>
                     )}
                 </AnimatePresence>
@@ -222,6 +263,7 @@ export default function ChatPage() {
                 open={notificationsOpen}
                 onOpenChange={setNotificationsOpen}
                 onCountChange={setUnreadCount}
+                onInvitationAccepted={refreshProjects}
             />
         </div>
     );

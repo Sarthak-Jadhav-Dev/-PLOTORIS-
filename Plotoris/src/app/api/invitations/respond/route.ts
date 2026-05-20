@@ -10,56 +10,46 @@ function getUserFromRequest(request: Request) {
   } catch { return null; }
 }
 
-// POST /api/invitations/respond — accept or decline invitation
 export async function POST(request: Request) {
   const user = getUserFromRequest(request);
   if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
   try {
     const { member_id, action, notification_id } = await request.json();
-    // action: 'accept' | 'decline'
 
-    if (!member_id || !['accept', 'decline'].includes(action)) {
-      return NextResponse.json({ message: 'member_id and action (accept|decline) are required' }, { status: 400 });
+    if (!member_id || !action) {
+      return NextResponse.json({ message: 'Missing member_id or action' }, { status: 400 });
     }
 
-    // Verify the membership belongs to this user
-    const { data: member, error: memberErr } = await supabase
+    if (action !== 'accept' && action !== 'decline') {
+      return NextResponse.json({ message: 'Invalid action' }, { status: 400 });
+    }
+
+    // Update the ProjectMembers record
+    const { error: memberError } = await supabase
       .from('ProjectMembers')
-      .select('*, Projects(name)')
+      .update({
+        status: action === 'accept' ? 'accepted' : 'declined',
+        responded_at: new Date().toISOString()
+      })
       .eq('id', member_id)
-      .eq('user_id', user.id)
-      .eq('status', 'pending')
-      .single();
+      .eq('user_id', user.id); // Ensure the user actually owns this invitation
 
-    if (memberErr || !member) {
-      return NextResponse.json({ message: 'Invitation not found or already responded' }, { status: 404 });
+    if (memberError) {
+      return NextResponse.json({ message: 'Failed to update invitation status', error: memberError.message }, { status: 500 });
     }
 
-    const newStatus = action === 'accept' ? 'accepted' : 'declined';
-
-    const { error: updateErr } = await supabase
-      .from('ProjectMembers')
-      .update({ status: newStatus, responded_at: new Date().toISOString() })
-      .eq('id', member_id);
-
-    if (updateErr) throw updateErr;
-
-    // Mark the notification as read
+    // Mark the notification as read if provided
     if (notification_id) {
       await supabase
         .from('Notifications')
         .update({ is_read: true })
-        .eq('id', notification_id);
+        .eq('id', notification_id)
+        .eq('user_id', user.id);
     }
 
-    return NextResponse.json({
-      message: action === 'accept'
-        ? `You have joined the project as ${member.role}`
-        : 'Invitation declined',
-    }, { status: 200 });
+    return NextResponse.json({ message: `Invitation ${action}ed successfully` }, { status: 200 });
   } catch (err: any) {
-    console.error('POST /api/invitations/respond error:', err);
-    return NextResponse.json({ message: 'Failed to respond to invitation', error: err.message }, { status: 500 });
+    return NextResponse.json({ message: 'Server error', error: err.message }, { status: 500 });
   }
 }

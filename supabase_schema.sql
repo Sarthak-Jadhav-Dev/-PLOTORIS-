@@ -104,3 +104,82 @@ $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER set_users_updated_at    BEFORE UPDATE ON public."Users"    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER set_projects_updated_at BEFORE UPDATE ON public."Projects" FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================
+-- Papers Table
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public."Papers" (
+    id              UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    project_id      UUID NOT NULL REFERENCES public."Projects"(id) ON DELETE CASCADE,
+    title           TEXT NOT NULL,
+    authors         TEXT[],
+    publication_date DATE,
+    doi             TEXT,
+    abstract        TEXT,
+    file_url        TEXT,
+    uploaded_by     UUID REFERENCES public."Users"(id),
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_papers_project ON public."Papers"(project_id);
+CREATE INDEX IF NOT EXISTS idx_papers_uploader ON public."Papers"(uploaded_by);
+
+-- ============================================================
+-- Insights Table
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public."Insights" (
+    id              UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    project_id      UUID NOT NULL REFERENCES public."Projects"(id) ON DELETE CASCADE,
+    paper_id        UUID REFERENCES public."Papers"(id) ON DELETE CASCADE,
+    content         TEXT NOT NULL,
+    type            TEXT DEFAULT 'general', -- 'general', 'methodology', 'finding', 'gap'
+    created_by      UUID REFERENCES public."Users"(id),
+    is_reviewed     BOOLEAN DEFAULT FALSE,
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_insights_project ON public."Insights"(project_id);
+CREATE INDEX IF NOT EXISTS idx_insights_paper ON public."Insights"(paper_id);
+
+-- ============================================================
+-- Tasks Table
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public."Tasks" (
+    id              UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    project_id      UUID NOT NULL REFERENCES public."Projects"(id) ON DELETE CASCADE,
+    title           TEXT NOT NULL,
+    description     TEXT,
+    assigned_to     UUID REFERENCES public."Users"(id),
+    status          TEXT DEFAULT 'todo', -- 'todo', 'in_progress', 'done'
+    priority        TEXT DEFAULT 'medium', -- 'low', 'medium', 'high'
+    due_date        DATE,
+    completed       BOOLEAN DEFAULT FALSE,
+    created_by      UUID REFERENCES public."Users"(id),
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_tasks_project ON public."Tasks"(project_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_assignee ON public."Tasks"(assigned_to);
+CREATE INDEX IF NOT EXISTS idx_tasks_status ON public."Tasks"(status);
+
+-- ============================================================
+-- Row Level Security for new tables
+-- ============================================================
+ALTER TABLE public."Papers"    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."Insights"  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."Tasks"     ENABLE ROW LEVEL SECURITY;
+
+-- Full anon access for new tables (auth handled at API layer)
+CREATE POLICY "anon_all_papers"   ON public."Papers"   FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "anon_all_insights" ON public."Insights" FOR ALL TO anon USING (true) WITH CHECK (true);
+CREATE POLICY "anon_all_tasks"    ON public."Tasks"    FOR ALL TO anon USING (true) WITH CHECK (true);
+
+-- ============================================================
+-- Auto update_at triggers for new tables
+-- ============================================================
+CREATE TRIGGER set_papers_updated_at   BEFORE UPDATE ON public."Papers"   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER set_insights_updated_at BEFORE UPDATE ON public."Insights" FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER set_tasks_updated_at    BEFORE UPDATE ON public."Tasks"    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

@@ -32,6 +32,8 @@ interface NotificationsPanelProps {
   onOpenChange: (open: boolean) => void;
   // Triggers parent re-fetch of notification count
   onCountChange?: (count: number) => void;
+  // Triggers parent re-fetch of projects list after accepting invitation
+  onInvitationAccepted?: () => void;
 }
 
 function timeAgo(dateStr: string): string {
@@ -44,7 +46,7 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(h / 24)}d ago`;
 }
 
-export default function NotificationsPanel({ open, onOpenChange, onCountChange }: NotificationsPanelProps) {
+export default function NotificationsPanel({ open, onOpenChange, onCountChange, onInvitationAccepted }: NotificationsPanelProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [respondingId, setRespondingId] = useState<string | null>(null);
@@ -86,6 +88,10 @@ export default function NotificationsPanel({ open, onOpenChange, onCountChange }
           n.id === notif.id ? { ...n, is_read: true, type: "info" as const, message: action === "accept" ? `✓ Joined as ${notif.metadata?.role}` : "✗ Invitation declined" } : n
         ));
         onCountChange?.(notifications.filter(n => !n.is_read && n.id !== notif.id).length);
+        // Trigger projects list refresh if invitation was accepted
+        if (action === "accept") {
+          onInvitationAccepted?.();
+        }
       }
     } catch { /* silent */ }
     finally { setRespondingId(null); }

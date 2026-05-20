@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import ReactFlow, {
   MiniMap,
   Controls,
@@ -10,52 +10,93 @@ import ReactFlow, {
   addEdge,
   Connection,
   Edge,
+  Node
 } from "reactflow";
 import "reactflow/dist/style.css";
+import { Loader2, AlertTriangle, Network } from "lucide-react";
 
-const initialNodes = [
-  {
-    id: "1",
-    type: "input",
-    data: { label: "IV: Social Media Usage" },
-    position: { x: 100, y: 200 },
-    style: { background: "#1a1a1a", color: "#60a5fa", border: "1px solid #3b82f6", borderRadius: "8px", padding: "10px" },
-  },
-  {
-    id: "2",
-    type: "output",
-    data: { label: "DV: Academic Performance" },
-    position: { x: 500, y: 200 },
-    style: { background: "#1a1a1a", color: "#34d399", border: "1px solid #10b981", borderRadius: "8px", padding: "10px" },
-  },
-  {
-    id: "3",
-    data: { label: "Control: Age / Demographics" },
-    position: { x: 300, y: 100 },
-    style: { background: "#1a1a1a", color: "#a1a1aa", border: "1px solid #52525b", borderRadius: "8px", padding: "10px" },
-  },
-  {
-    id: "4",
-    data: { label: "Moderator: Self-Discipline" },
-    position: { x: 300, y: 350 },
-    style: { background: "#1a1a1a", color: "#fbbf24", border: "1px solid #f59e0b", borderRadius: "8px", padding: "10px" },
-  }
-];
+interface VariableMapperProps {
+  projectId: string;
+  hypothesis: any;
+}
 
-const initialEdges = [
-  { id: "e1-2", source: "1", target: "2", animated: true, label: "Negative Impact", style: { stroke: "#ef4444" } },
-  { id: "e3-2", source: "3", target: "2", type: "dashed", style: { stroke: "#52525b" } },
-  { id: "e4-e12", source: "4", target: "2", label: "Moderates", type: "smoothstep", style: { stroke: "#f59e0b" } },
-];
+export default function VariableMapper({ projectId, hypothesis }: VariableMapperProps) {
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-export default function VariableMapper() {
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const fetchVariableMap = async () => {
+    if (!hypothesis) return;
+    setIsGenerating(true);
+    setError(null);
+    try {
+      const geminiKey = localStorage.getItem(`plotoris_gemini_key_${projectId}`) || "";
+      const headers: any = { "Content-Type": "application/json" };
+      if (geminiKey) headers["x-gemini-key"] = geminiKey;
+
+      const res = await fetch("/api/phase3/variable-map", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ hypothesis: hypothesis, project_id: projectId })
+      });
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to generate variable map");
+      }
+
+      setNodes(data.nodes || []);
+      setEdges(data.edges || []);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  useEffect(() => {
+    if (hypothesis && nodes.length === 0 && !isGenerating) {
+      fetchVariableMap();
+    }
+  }, [hypothesis]);
 
   const onConnect = useCallback(
     (params: Edge | Connection) => setEdges((eds) => addEdge({ ...params, animated: true }, eds)),
     [setEdges]
   );
+
+  if (!hypothesis) {
+    return (
+      <div className="w-full h-full bg-[#111] flex flex-col items-center justify-center p-8 text-center border border-[#333] rounded-2xl">
+        <Network size={48} className="text-[#333] mb-4" />
+        <h3 className="text-white font-medium mb-2">No Hypothesis Available</h3>
+        <p className="text-[#888] text-sm max-w-md">Generate a hypothesis in the Builder tab first to visualize its variable relationships.</p>
+      </div>
+    );
+  }
+
+  if (isGenerating) {
+    return (
+      <div className="w-full h-full bg-[#111] flex flex-col items-center justify-center p-8 text-center border border-[#333] rounded-2xl">
+        <Loader2 size={32} className="animate-spin text-blue-500 mb-4" />
+        <p className="text-white font-medium animate-pulse">AI is generating your variable map...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="w-full h-full bg-[#111] flex flex-col items-center justify-center p-8 text-center border border-[#333] rounded-2xl">
+        <AlertTriangle size={32} className="text-rose-500 mb-4" />
+        <p className="text-white font-medium mb-2">Error Generating Map</p>
+        <p className="text-[#888] text-sm mb-4">{error}</p>
+        <button onClick={fetchVariableMap} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition-colors">
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full h-full relative">

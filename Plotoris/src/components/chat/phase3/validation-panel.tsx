@@ -4,10 +4,11 @@ import { useEffect, useState } from "react";
 import { SearchCode, CheckCircle, XCircle, FileText, Loader2, BookOpen } from "lucide-react";
 
 interface ValidationPanelProps {
+  projectId: string;
   hypothesis: any;
 }
 
-export default function ValidationPanel({ hypothesis }: ValidationPanelProps) {
+export default function ValidationPanel({ projectId, hypothesis }: ValidationPanelProps) {
   const [validationData, setValidationData] = useState<any>(null);
   const [isValidating, setIsValidating] = useState(false);
 
@@ -16,10 +17,14 @@ export default function ValidationPanel({ hypothesis }: ValidationPanelProps) {
     setIsValidating(true);
     
     try {
+      const geminiKey = localStorage.getItem(`plotoris_gemini_key_${projectId}`) || "";
+      const headers: any = { "Content-Type": "application/json" };
+      if (geminiKey) headers["x-gemini-key"] = geminiKey;
+
       const res = await fetch("/api/phase3/validate-literature", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ hypothesis: hypothesis.h1 })
+        headers,
+        body: JSON.stringify({ hypothesis: hypothesis.h1, project_id: projectId })
       });
       const data = await res.json();
       setValidationData(data);

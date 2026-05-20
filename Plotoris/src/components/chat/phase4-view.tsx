@@ -14,7 +14,7 @@ import EthicsChecklist from "@/components/chat/phase4/ethics-checklist";
 import TimelineBuilder from "@/components/chat/phase4/timeline-builder";
 import MethodologyBuilder from "@/components/chat/phase4/methodology-builder";
 
-export default function PhaseFourView() {
+export default function PhaseFourView({ projectId }: { projectId: string }) {
   const [activeTab, setActiveTab] = useState<"dashboard" | "design" | "sample" | "ethics" | "timeline" | "methodology">("dashboard");
 
   return (
@@ -124,31 +124,31 @@ export default function PhaseFourView() {
 
           {activeTab === "design" && (
             <motion.div key="design" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <DesignRecommender />
+              <DesignRecommender projectId={projectId} />
             </motion.div>
           )}
 
           {activeTab === "sample" && (
             <motion.div key="sample" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <SampleSizeCalculator />
+              <SampleSizeCalculator projectId={projectId} />
             </motion.div>
           )}
 
           {activeTab === "ethics" && (
             <motion.div key="ethics" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <EthicsChecklist />
+              <EthicsChecklist projectId={projectId} />
             </motion.div>
           )}
 
           {activeTab === "timeline" && (
             <motion.div key="timeline" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <TimelineBuilder />
+              <TimelineBuilder projectId={projectId} />
             </motion.div>
           )}
 
           {activeTab === "methodology" && (
             <motion.div key="methodology" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <MethodologyBuilder />
+              <MethodologyBuilder projectId={projectId} />
             </motion.div>
           )}
 

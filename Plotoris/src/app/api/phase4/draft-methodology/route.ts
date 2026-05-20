@@ -1,46 +1,82 @@
 import { NextResponse } from "next/server";
+import { ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { supabase } from "@/lib/supabase";
 
 export async function POST(req: Request) {
   try {
-    // Simulate AI generation delay
-    await new Promise(r => setTimeout(r, 2500));
+    const { project_id } = await req.json();
+    const geminiKey = req.headers.get("x-gemini-key") || process.env.GEMINI_API_KEY;
 
-    const methodology = `## 3. Research Methodology
+    if (!project_id) {
+      return NextResponse.json({ error: "project_id is required" }, { status: 400 });
+    }
+    if (!geminiKey) {
+      return NextResponse.json({ error: "Gemini API key required" }, { status: 401 });
+    }
 
-### 3.1 Research Design
+    // Fetch all Phase 3 & 4 context (hypothesis, variables, design, sample, ethics, timeline)
+    const { data: docs, error: fetchError } = await supabase
+      .from("Documents")
+      .select("content, metadata")
+      .eq("metadata->>project_id", project_id)
+      .in("metadata->>type", [
+        "hypothesis",
+        "variable_map",
+        "design_recommendation",
+        "sample_size",
+        "ethics_checklist",
+        "timeline",
+      ]);
 
-This study employs a **quasi-experimental design** to investigate the causal relationship between the identified independent and dependent variables. This design was selected because it allows the researcher to draw causal inferences while working within the natural constraints of the research setting, where full randomization of participants is not feasible.
+    if (fetchError) {
+      throw new Error(`Failed to fetch project context: ${fetchError.message}`);
+    }
 
-A pre-test/post-test control group structure will be adopted, with a non-equivalent control group, to minimize the threat of selection bias and to control for maturation effects.
+    // Build a labelled context string for the prompt
+    const contextStr =
+      docs
+        ?.map(d => {
+          const type = (d.metadata as any)?.type ?? "context";
+          return `### ${type.toUpperCase()}\n${d.content}`;
+        })
+        .join("\n\n") || "No prior project context found.";
 
-### 3.2 Participants and Sampling Strategy
+    const model = new ChatGoogleGenerativeAI({
+      apiKey: geminiKey,
+      model: "gemini-2.0-flash",
+      temperature: 0.2,
+    });
 
-Participants will be recruited from the target population using **purposive sampling**, with eligibility criteria defined according to the study's inclusion and exclusion parameters. A minimum sample size of **n = 385** has been determined using Cochran's (1977) formula for large populations at a 95% confidence level and a 5% margin of error, adjusted upward by 10% to account for expected attrition.
+    const prompt = `You are an expert academic researcher and methodologist. Using the following project context from previous phases, write a complete, journal-quality **Research Methodology** section in academic prose. Include all sub-sections: research design, participants & sampling strategy, data collection instruments & procedures, ethical considerations, and data analysis plan. Use markdown headings (##, ###) to structure the output.
 
-All participants will provide written informed consent prior to enrollment. Participation will be entirely voluntary, and participants will be informed of their right to withdraw at any time without penalty.
+Project context:
+${contextStr}
 
-### 3.3 Data Collection Instruments and Procedures
+Write the full methodology section now. Output only the methodology text — no introduction, no preamble.`;
 
-Data will be collected using validated, standardized instruments selected from the peer-reviewed literature identified in the preceding literature review phase. Measurements of the dependent variable will be conducted at three time points: at baseline (T0), at the midpoint intervention (T1), and at post-intervention conclusion (T2).
+    const aiResponse = await model.invoke(prompt);
+    const methodology = aiResponse.content.toString().trim();
 
-All data collection procedures will be administered in a standardized manner to ensure consistency across participants and sites. Research assistants will be trained prior to data collection to ensure procedural fidelity.
+    // Embed and store
+    const embeddings = new GoogleGenerativeAIEmbeddings({
+      apiKey: geminiKey,
+      model: "text-embedding-004",
+    });
+    const vector = await embeddings.embedQuery(methodology.slice(0, 2000));
 
-### 3.4 Ethical Considerations
-
-This research has been designed in full accordance with established ethical principles for research involving human participants, including the Declaration of Helsinki. An application has been prepared for submission to the Institutional Review Board (IRB). Key ethical provisions include:
-
-- **Informed Consent**: All participants will receive a plain-language information sheet and sign a written consent form prior to enrollment.
-- **Confidentiality**: All participant data will be anonymized at the point of collection. No personally identifiable information will be retained in the final dataset.
-- **Data Security**: Data will be stored on encrypted, access-controlled servers and retained only for the duration specified by institutional data retention policies.
-- **Right to Withdraw**: Participation is voluntary and participants may withdraw at any point without consequence.
-
-### 3.5 Data Analysis Plan
-
-Collected data will be analyzed using appropriate inferential statistical methods commensurate with the study's hypotheses and measurement scales. Primary analyses will include independent-samples t-tests or ANOVA for between-group comparisons, supplemented by effect size calculations (Cohen's d or η²) to assess practical significance. Statistical significance will be set at α = .05. All analyses will be conducted using SPSS version 29 or R (version 4.3.0).
-`;
+    await supabase.from("Documents").insert({
+      content: methodology,
+      embedding: vector,
+      metadata: {
+        project_id,
+        phase: 4,
+        type: "methodology_draft",
+      },
+    });
 
     return NextResponse.json({ methodology });
   } catch (error: any) {
+    console.error(error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

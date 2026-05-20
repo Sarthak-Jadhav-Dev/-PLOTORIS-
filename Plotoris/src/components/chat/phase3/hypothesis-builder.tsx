@@ -6,10 +6,11 @@ import { Loader2, Lightbulb, RefreshCw, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface HypothesisBuilderProps {
+  projectId: string;
   onHypothesisGenerated: (data: any) => void;
 }
 
-export default function HypothesisBuilder({ onHypothesisGenerated }: HypothesisBuilderProps) {
+export default function HypothesisBuilder({ projectId, onHypothesisGenerated }: HypothesisBuilderProps) {
   const [iv, setIv] = useState("");
   const [dv, setDv] = useState("");
   const [relationship, setRelationship] = useState("Positive");
@@ -22,10 +23,14 @@ export default function HypothesisBuilder({ onHypothesisGenerated }: HypothesisB
     setResult(null);
 
     try {
+      const geminiKey = localStorage.getItem(`plotoris_gemini_key_${projectId}`) || "";
+      const headers: any = { "Content-Type": "application/json" };
+      if (geminiKey) headers["x-gemini-key"] = geminiKey;
+
       const res = await fetch("/api/phase3/generate-hypothesis", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ iv, dv, relationship })
+        headers,
+        body: JSON.stringify({ iv, dv, relationship, project_id: projectId })
       });
       const data = await res.json();
       setResult(data);
@@ -115,6 +120,7 @@ export default function HypothesisBuilder({ onHypothesisGenerated }: HypothesisB
       <AnimatePresence>
         {result && (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+            {/* H1 Card */}
             <div className="bg-gradient-to-br from-amber-900/30 to-[#1a1a1a] border border-amber-500/30 rounded-2xl p-8 relative overflow-hidden shadow-2xl">
               <div className="absolute top-0 right-0 p-6 opacity-5">
                 <Lightbulb size={120} />
@@ -131,6 +137,41 @@ export default function HypothesisBuilder({ onHypothesisGenerated }: HypothesisB
                  <p className="text-sm text-[#a0aec0] italic">"{result.h0}"</p>
               </div>
             </div>
+
+            {/* Rationale + Framework */}
+            {(result.rationale || result.conceptual_framework) && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {result.rationale && (
+                  <div className="bg-[#0d0d0d] border border-[#333] rounded-xl p-5">
+                    <p className="text-[10px] text-amber-400 uppercase font-bold tracking-wider mb-2">Scientific Rationale</p>
+                    <p className="text-sm text-[#a0aec0] leading-relaxed">{result.rationale}</p>
+                  </div>
+                )}
+                {result.conceptual_framework && (
+                  <div className="bg-[#0d0d0d] border border-[#333] rounded-xl p-5">
+                    <p className="text-[10px] text-amber-400 uppercase font-bold tracking-wider mb-2">Conceptual Framework</p>
+                    <p className="text-lg font-semibold text-white">{result.conceptual_framework}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Keywords */}
+            {result.keywords && result.keywords.length > 0 && (
+              <div className="bg-[#0d0d0d] border border-[#333] rounded-xl p-5">
+                <p className="text-[10px] text-amber-400 uppercase font-bold tracking-wider mb-3">Academic Keywords</p>
+                <div className="flex flex-wrap gap-2">
+                  {result.keywords.map((kw: string, i: number) => (
+                    <span
+                      key={i}
+                      className="bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-medium px-3 py-1 rounded-full"
+                    >
+                      {kw}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

@@ -6,10 +6,11 @@ import { Loader2, GitCompare, CheckCircle2, AlertTriangle, XCircle, RefreshCw } 
 import { Button } from "@/components/ui/button";
 
 interface TestabilityScorerProps {
+  projectId: string;
   hypothesis: any;
 }
 
-export default function TestabilityScorer({ hypothesis }: TestabilityScorerProps) {
+export default function TestabilityScorer({ projectId, hypothesis }: TestabilityScorerProps) {
   const [scoreData, setScoreData] = useState<any>(null);
   const [isScoring, setIsScoring] = useState(false);
 
@@ -18,10 +19,14 @@ export default function TestabilityScorer({ hypothesis }: TestabilityScorerProps
     setIsScoring(true);
     
     try {
+      const geminiKey = localStorage.getItem(`plotoris_gemini_key_${projectId}`) || "";
+      const headers: any = { "Content-Type": "application/json" };
+      if (geminiKey) headers["x-gemini-key"] = geminiKey;
+
       const res = await fetch("/api/phase3/score-hypothesis", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ hypothesis: hypothesis.h1 })
+        headers,
+        body: JSON.stringify({ hypothesis: hypothesis.h1, project_id: projectId })
       });
       const data = await res.json();
       setScoreData(data);

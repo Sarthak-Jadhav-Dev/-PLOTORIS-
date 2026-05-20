@@ -13,7 +13,7 @@ import VariableMapper from "@/components/chat/phase3/variable-mapper";
 import TestabilityScorer from "@/components/chat/phase3/testability-scorer";
 import ValidationPanel from "@/components/chat/phase3/validation-panel";
 
-export default function PhaseThreeView() {
+export default function PhaseThreeView({ projectId }: { projectId: string }) {
   const [activeTab, setActiveTab] = useState<"dashboard" | "builder" | "mapper" | "scorer" | "validation" | "voting">("dashboard");
 
   // State to hold the current hypothesis draft
@@ -120,7 +120,7 @@ export default function PhaseThreeView() {
 
           {activeTab === "builder" && (
             <motion.div key="builder" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <HypothesisBuilder onHypothesisGenerated={(data) => {
+              <HypothesisBuilder projectId={projectId} onHypothesisGenerated={(data) => {
                 setHypothesisDraft(data);
                 setActiveTab("scorer");
               }} />
@@ -129,19 +129,19 @@ export default function PhaseThreeView() {
 
           {activeTab === "mapper" && (
             <motion.div key="mapper" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="h-[600px] bg-[#111] rounded-2xl border border-[#333] overflow-hidden">
-              <VariableMapper />
+              <VariableMapper projectId={projectId} hypothesis={hypothesisDraft} />
             </motion.div>
           )}
 
           {activeTab === "scorer" && (
             <motion.div key="scorer" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <TestabilityScorer hypothesis={hypothesisDraft} />
+              <TestabilityScorer projectId={projectId} hypothesis={hypothesisDraft} />
             </motion.div>
           )}
 
           {activeTab === "validation" && (
             <motion.div key="validation" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <ValidationPanel hypothesis={hypothesisDraft} />
+              <ValidationPanel projectId={projectId} hypothesis={hypothesisDraft} />
             </motion.div>
           )}
 

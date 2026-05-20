@@ -11,11 +11,12 @@ function getUserFromRequest(request: Request) {
 }
 
 // GET /api/projects/[id]/stats — get statistics for a project
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = getUserFromRequest(request);
   if (!user) return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
 
-  const projectId = params.id;
+  const resolvedParams = await params;
+  const projectId = resolvedParams.id;
 
   try {
     // Verify user has access to this project (owner or member)

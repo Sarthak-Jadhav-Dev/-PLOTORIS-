@@ -14,7 +14,7 @@ import RevisionAssistant from "@/components/chat/phase9/revision-assistant";
 
 type Tab = "dashboard" | "recommender" | "exporter" | "tracker" | "reviews" | "revision";
 
-export default function PhaseNineView() {
+export default function PhaseNineView({ projectId }: { projectId: string }) {
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
 
   const tabs: { id: Tab; label: string }[] = [
@@ -114,27 +114,27 @@ export default function PhaseNineView() {
 
           {activeTab === "recommender" && (
             <motion.div key="recommender" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <JournalRecommender />
+              <JournalRecommender projectId={projectId} />
             </motion.div>
           )}
           {activeTab === "exporter" && (
             <motion.div key="exporter" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <AutoFormatExporter />
+              <AutoFormatExporter projectId={projectId} />
             </motion.div>
           )}
           {activeTab === "tracker" && (
             <motion.div key="tracker" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <SubmissionTracker />
+              <SubmissionTracker projectId={projectId} />
             </motion.div>
           )}
           {activeTab === "reviews" && (
             <motion.div key="reviews" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <PeerReviewManager />
+              <PeerReviewManager projectId={projectId} />
             </motion.div>
           )}
           {activeTab === "revision" && (
             <motion.div key="revision" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <RevisionAssistant />
+              <RevisionAssistant projectId={projectId} />
             </motion.div>
           )}
         </AnimatePresence>

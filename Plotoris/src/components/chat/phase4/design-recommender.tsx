@@ -5,14 +5,22 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Loader2, FlaskConical, CheckCircle2, AlertTriangle, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export default function DesignRecommender() {
+export default function DesignRecommender({ projectId }: { projectId: string }) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [result, setResult] = useState<any>(null);
 
   const handleRecommend = async () => {
     setIsGenerating(true);
     try {
-      const res = await fetch("/api/phase4/recommend-design", { method: "POST" });
+      const geminiKey = localStorage.getItem(`plotoris_gemini_key_${projectId}`) || "";
+      const headers: any = { "Content-Type": "application/json" };
+      if (geminiKey) headers["x-gemini-key"] = geminiKey;
+
+      const res = await fetch("/api/phase4/recommend-design", { 
+        method: "POST",
+        headers,
+        body: JSON.stringify({ project_id: projectId })
+      });
       const data = await res.json();
       setResult(data);
     } catch (err) {

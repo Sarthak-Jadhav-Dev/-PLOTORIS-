@@ -1,34 +1,91 @@
 import { NextResponse } from "next/server";
+import { ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { supabase } from "@/lib/supabase";
 
 export async function POST(req: Request) {
   try {
-    // Simulate AI processing delay
-    await new Promise(r => setTimeout(r, 2000));
+    const { project_id } = await req.json();
+    const geminiKey = req.headers.get("x-gemini-key") || process.env.GEMINI_API_KEY;
 
-    return NextResponse.json({
-      design_type: "Quasi-Experimental Design",
-      confidence: 88,
-      rationale:
-        "Given your hypothesis involves measuring the impact of an independent variable on a dependent variable without full random assignment (as participants cannot be randomly allocated), a Quasi-Experimental Design is most appropriate. It allows you to establish causal inference while working within real-world constraints of your research setting.",
-      advantages: [
-        "Allows causal inference without requiring full randomization.",
-        "Practical for field studies where random assignment is infeasible.",
-        "Can leverage existing groups (e.g., classes, departments) as conditions.",
-        "Strong internal validity when combined with pre-test/post-test measurements.",
-      ],
-      limitations: [
-        "Selection bias remains a potential threat to internal validity.",
-        "Results may have limited generalizability without random sampling.",
-        "Requires careful control of confounding variables.",
-        "Time and resources needed for longitudinal measurement.",
-      ],
-      alternatives: [
-        { name: "Correlational Study", reason: "Simpler but cannot establish causality." },
-        { name: "Randomized Controlled Trial", reason: "Gold standard but requires full random assignment." },
-        { name: "Cross-Sectional Survey", reason: "Faster but only captures a snapshot in time." },
-      ],
+    if (!project_id) {
+      return NextResponse.json({ error: "project_id is required" }, { status: 400 });
+    }
+    if (!geminiKey) {
+      return NextResponse.json({ error: "Gemini API key required" }, { status: 401 });
+    }
+
+    // Fetch previous hypothesis from Phase 3
+    const { data: docs, error: fetchError } = await supabase
+      .from("Documents")
+      .select("content")
+      .eq("metadata->>project_id", project_id)
+      .eq("metadata->>phase", "3")
+      .in("metadata->>type", ["hypothesis", "variable_map"]);
+
+    if (fetchError) {
+      throw new Error(`Failed to fetch project context: ${fetchError.message}`);
+    }
+
+    const contextStr = docs?.map(d => d.content).join("\n") || "No previous hypothesis found.";
+
+    const model = new ChatGoogleGenerativeAI({
+      apiKey: geminiKey,
+      model: "gemini-2.0-flash",
+      temperature: 0.1,
     });
+
+    const prompt = `
+You are an expert research methodologist. Review the following project context (hypothesis and variables) from previous phases:
+${contextStr}
+
+Recommend the most rigorous research design suitable for testing this hypothesis. Provide a JSON object with this exact structure:
+{
+  "design_type": "Name of the design (e.g. Quasi-Experimental Design)",
+  "confidence": 88, // integer 0-100
+  "rationale": "Detailed explanation of why this design is best.",
+  "advantages": [
+    "Advantage 1",
+    "Advantage 2"
+  ],
+  "limitations": [
+    "Limitation 1",
+    "Limitation 2"
+  ]
+}
+Return only the raw JSON.
+`;
+
+    const aiResponse = await model.invoke(prompt);
+    let parsed;
+    try {
+      const contentStr = aiResponse.content.toString().trim();
+      const jsonMatch = contentStr.match(/\{[\s\S]*\}/);
+      parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : JSON.parse(contentStr);
+    } catch (e) {
+      console.error("Parse error from Gemini:", aiResponse.content);
+      return NextResponse.json({ error: "Failed to parse AI response" }, { status: 500 });
+    }
+
+    // Embed and store
+    const embeddings = new GoogleGenerativeAIEmbeddings({
+      apiKey: geminiKey,
+      model: "text-embedding-004",
+    });
+    const vector = await embeddings.embedQuery(`Research design recommendation: ${parsed.design_type}. Rationale: ${parsed.rationale}`);
+
+    await supabase.from("Documents").insert({
+      content: JSON.stringify(parsed),
+      embedding: vector,
+      metadata: {
+        project_id,
+        phase: 4,
+        type: "design_recommendation",
+      },
+    });
+
+    return NextResponse.json(parsed);
   } catch (error: any) {
+    console.error(error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

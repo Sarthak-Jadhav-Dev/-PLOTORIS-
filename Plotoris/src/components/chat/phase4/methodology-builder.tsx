@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FileEdit, Loader2, Download, RefreshCw, Sparkles, Copy, CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export default function MethodologyBuilder() {
+export default function MethodologyBuilder({ projectId }: { projectId: string }) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [draft, setDraft] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -14,10 +14,14 @@ export default function MethodologyBuilder() {
     setIsGenerating(true);
     setDraft(null);
     try {
+      const geminiKey = localStorage.getItem(`plotoris_gemini_key_${projectId}`) || "";
+      const headers: any = { "Content-Type": "application/json" };
+      if (geminiKey) headers["x-gemini-key"] = geminiKey;
+
       const res = await fetch("/api/phase4/draft-methodology", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phase: 4 }),
+        headers,
+        body: JSON.stringify({ phase: 4, project_id: projectId }),
       });
       const data = await res.json();
       setDraft(data.methodology);

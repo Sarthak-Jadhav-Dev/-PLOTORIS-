@@ -4,18 +4,28 @@ import { supabase } from "@/lib/supabase";
 
 export async function POST(req: Request) {
   try {
-    const { hypothesis, project_id } = await req.json();
+    const { project_id, population, confidence, margin, dropout } = await req.json();
     const geminiKey = req.headers.get("x-gemini-key") || process.env.GEMINI_API_KEY;
 
-    if (!hypothesis) {
-      return NextResponse.json({ error: "Hypothesis is required" }, { status: 400 });
-    }
     if (!project_id) {
       return NextResponse.json({ error: "project_id is required" }, { status: 400 });
     }
     if (!geminiKey) {
       return NextResponse.json({ error: "Gemini API key required" }, { status: 401 });
     }
+
+    // Fetch previous hypothesis & design from Phase 3/4
+    const { data: docs, error: fetchError } = await supabase
+      .from("Documents")
+      .select("content")
+      .eq("metadata->>project_id", project_id)
+      .in("metadata->>type", ["hypothesis", "design_recommendation"]);
+
+    if (fetchError) {
+      throw new Error(`Failed to fetch project context: ${fetchError.message}`);
+    }
+
+    const contextStr = docs?.map(d => d.content).join("\n") || "No previous context found.";
 
     const model = new ChatGoogleGenerativeAI({
       apiKey: geminiKey,
@@ -24,28 +34,22 @@ export async function POST(req: Request) {
     });
 
     const prompt = `
-You are a peer reviewer evaluating the scientific rigor and testability of the following hypothesis:
-"${hypothesis}"
+You are an expert statistician. Review the following project context (hypothesis and research design):
+${contextStr}
 
-Evaluate the hypothesis across 6 dimensions: Clarity, Specificity, Falsifiability, Measurability, Novelty, and Feasibility.
+The user has provided the following parameters for sample size calculation:
+- Population Size: ${population || 'Unknown (assume infinite/large)'}
+- Confidence Level: ${confidence}%
+- Margin of Error: ${margin}%
+- Expected Dropout Rate: ${dropout}%
+
+Calculate or recommend an appropriate sample size, taking into account statistical power and effect size appropriate for the design. 
 Provide a JSON object with this exact structure:
 {
-  "overall_score": 85, // integer 0-100
-  "dimensions": [
-    { "subject": "Clarity", "score": 90, "fullMark": 100 },
-    { "subject": "Specificity", "score": 80, "fullMark": 100 },
-    { "subject": "Falsifiability", "score": 85, "fullMark": 100 },
-    { "subject": "Measurability", "score": 75, "fullMark": 100 },
-    { "subject": "Novelty", "score": 80, "fullMark": 100 },
-    { "subject": "Feasibility", "score": 90, "fullMark": 100 }
-  ],
-  "strengths": [
-    "Strength point 1",
-    "Strength point 2"
-  ],
-  "weaknesses": [
-    { "dimension": "Measurability", "suggestion": "Suggestion on how to improve this dimension" }
-  ]
+  "recommended_size": 150, // The final target enrollment adjusted for dropout
+  "power": 80, // Statistical power percentage
+  "effect_size": "Medium (Cohen's d = 0.5)", // The assumed effect size
+  "rationale": "Brief rationale for this calculation."
 }
 Return only the raw JSON.
 `;
@@ -61,20 +65,20 @@ Return only the raw JSON.
       return NextResponse.json({ error: "Failed to parse AI response" }, { status: 500 });
     }
 
-    // Embed score result for later retrieval
+    // Embed and store
     const embeddings = new GoogleGenerativeAIEmbeddings({
       apiKey: geminiKey,
       model: "text-embedding-004",
     });
-    const vector = await embeddings.embedQuery(`Testability score for hypothesis: ${hypothesis}. Score: ${parsed.overall_score}`);
+    const vector = await embeddings.embedQuery(`Sample size calculation: ${parsed.recommended_size}. Power: ${parsed.power}`);
 
     await supabase.from("Documents").insert({
       content: JSON.stringify(parsed),
       embedding: vector,
       metadata: {
         project_id,
-        phase: 3,
-        type: "testability_score",
+        phase: 4,
+        type: "sample_size",
       },
     });
 

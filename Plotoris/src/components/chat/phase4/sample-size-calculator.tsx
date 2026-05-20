@@ -1,43 +1,43 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Calculator, Users, HelpCircle } from "lucide-react";
+import { useState } from "react";
+import { Calculator, Users, HelpCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export default function SampleSizeCalculator() {
+export default function SampleSizeCalculator({ projectId }: { projectId: string }) {
   const [population, setPopulation] = useState<number | "">("");
   const [confidence, setConfidence] = useState(95);
   const [margin, setMargin] = useState(5);
   const [dropout, setDropout] = useState(10);
+  const [isCalculating, setIsCalculating] = useState(false);
+  const [result, setResult] = useState<any>(null);
 
-  // Simplified native math calculation for prototype
-  const calculateSize = useMemo(() => {
-    // Z-scores for standard confidence levels
-    const zScores: Record<number, number> = { 90: 1.645, 95: 1.96, 99: 2.576 };
-    const z = zScores[confidence] || 1.96;
-    
-    const p = 0.5; // safe assumption for max variance
-    const e = margin / 100;
-    
-    // Base sample size (Cochran's formula)
-    const n0 = (Math.pow(z, 2) * p * (1 - p)) / Math.pow(e, 2);
-    
-    let finalN = n0;
-    
-    // Finite population correction
-    if (population && population > 0) {
-      finalN = n0 / (1 + ((n0 - 1) / population));
+  const calculateSize = async () => {
+    setIsCalculating(true);
+    try {
+      const geminiKey = localStorage.getItem(`plotoris_gemini_key_${projectId}`) || "";
+      const headers: any = { "Content-Type": "application/json" };
+      if (geminiKey) headers["x-gemini-key"] = geminiKey;
+
+      const res = await fetch("/api/phase4/calculate-sample", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          project_id: projectId,
+          population: population || null,
+          confidence,
+          margin,
+          dropout
+        })
+      });
+      const data = await res.json();
+      setResult(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsCalculating(false);
     }
-    
-    // Adjust for expected dropout
-    const adjustedForDropout = finalN / (1 - (dropout / 100));
-    
-    return {
-      base: Math.ceil(finalN),
-      target: Math.ceil(adjustedForDropout)
-    };
-  }, [population, confidence, margin, dropout]);
-
+  };
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="bg-[#1a1a1a] border border-[#333] p-8 rounded-2xl shadow-xl flex flex-col md:flex-row gap-12">
@@ -106,17 +106,29 @@ export default function SampleSizeCalculator() {
         <div className="md:w-64 shrink-0 flex flex-col items-center justify-center bg-[#0d0d0d] rounded-2xl border border-[#333] p-6 text-center">
           <Users size={32} className="text-[#444] mb-4" />
           <p className="text-sm text-[#888] font-medium mb-1">Required Sample Size</p>
-          <h3 className="text-5xl font-black text-white mb-2">{calculateSize.base}</h3>
+          <h3 className="text-5xl font-black text-white mb-2">
+            {result ? result.recommended_size : "--"}
+          </h3>
           
           <div className="w-full h-px bg-[#333] my-4" />
           
           <p className="text-xs text-[#888] font-medium mb-1 flex items-center justify-center gap-1">
-            Target Enrollment <HelpCircle size={12} />
+            Statistical Power <HelpCircle size={12} />
           </p>
-          <h3 className="text-3xl font-bold text-indigo-400 mb-2">{calculateSize.target}</h3>
-          <p className="text-[10px] text-[#666]">Adjusted for {dropout}% dropout</p>
+          <h3 className="text-3xl font-bold text-indigo-400 mb-2">
+            {result ? `${result.power}%` : "--%"}
+          </h3>
+          <p className="text-[10px] text-[#666]">
+            {result ? `Effect Size: ${result.effect_size}` : "Adjusted for dropouts"}
+          </p>
 
-          <Button className="w-full mt-6 bg-indigo-600 hover:bg-indigo-700 text-white">Save Calculation</Button>
+          <Button 
+            onClick={calculateSize} 
+            disabled={isCalculating}
+            className="w-full mt-6 bg-indigo-600 hover:bg-indigo-700 text-white"
+          >
+            {isCalculating ? <Loader2 size={16} className="animate-spin" /> : "Calculate Size"}
+          </Button>
         </div>
       </div>
     </div>

@@ -243,11 +243,11 @@ export default function ChatPage() {
                             {activeChat === "p1" ? (
                                 <PhaseOneView projectId={activeProject?.id} />
                             ) : activeChat === "p2" ? (
-                                <PhaseTwoView />
+                                <PhaseTwoView projectId={activeProject?.id || ""} />
                             ) : activeChat === "p3" ? (
-                                <PhaseThreeView />
+                                <PhaseThreeView projectId={activeProject?.id || ""} />
                             ) : activeChat === "p4" ? (
-                                <PhaseFourView />
+                                <PhaseFourView projectId={activeProject?.id || ""} />
                             ) : activeChat === "p5" ? (
                                 <PhaseFiveView />
                             ) : activeChat === "p7" ? (
@@ -255,7 +255,7 @@ export default function ChatPage() {
                             ) : activeChat === "p8" ? (
                                 <PhaseEightView />
                             ) : activeChat === "p9" ? (
-                                <PhaseNineView />
+                                <PhaseNineView projectId={activeProject?.id || ""} />
                             ) : (
                                 <>
                                     <ChatMessages messages={messages} />

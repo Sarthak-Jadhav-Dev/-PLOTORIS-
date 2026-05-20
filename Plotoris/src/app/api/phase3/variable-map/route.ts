@@ -17,31 +17,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Gemini API key required" }, { status: 401 });
     }
 
-    // Embed the hypothesis to search against the literature corpus
-    const embeddings = new GoogleGenerativeAIEmbeddings({
-      apiKey: geminiKey,
-      model: "text-embedding-004",
-    });
-    const queryEmbedding = await embeddings.embedQuery(hypothesis);
-
-    // Call match_documents RPC to find relevant paper chunks
-    const { data: matchedDocs, error: matchError } = await supabase.rpc("match_documents", {
-      query_embedding: queryEmbedding,
-      match_threshold: 0.5,
-      match_count: 8,
-      p_project_id: project_id,
-    });
-
-    if (matchError) {
-      console.error("RPC Error:", matchError);
-      throw new Error("Failed to search literature corpus");
-    }
-
-    // Format context from retrieved chunks
-    const context = matchedDocs && matchedDocs.length > 0 
-      ? matchedDocs.map((doc: any) => `Paper: ${doc.metadata?.title || 'Unknown'}\nContent: ${doc.content}`).join("\n\n")
-      : "";
-
     const model = new ChatGoogleGenerativeAI({
       apiKey: geminiKey,
       model: "gemini-2.0-flash",
@@ -49,24 +24,35 @@ export async function POST(req: Request) {
     });
 
     const prompt = `
-You are a peer reviewer verifying if a hypothesis is supported or contradicted by the existing literature corpus.
-Hypothesis: "${hypothesis}"
+You are an expert academic researcher designing a variable conceptual map based on the following hypothesis:
+"${JSON.stringify(hypothesis)}"
 
-Context from Literature Corpus:
-${context || "No relevant literature found in the corpus."}
+Your task is to identify the Independent Variable (IV), Dependent Variable (DV), and any relevant Control, Moderator, or Mediator variables implied or suitable for this research.
+Generate a set of nodes and edges compatible with React Flow to visualize these variables and their relationships.
 
 Provide a JSON object with this exact structure:
 {
-  "verdict": "Supported" | "Contradicted" | "Insufficient Evidence",
-  "confidence": 85, // integer 0-100
-  "explanation": "Detailed explanation based on the literature.",
-  "supporting_papers": [
-    { "title": "Paper Title", "quote": "Relevant quote supporting the hypothesis." }
+  "nodes": [
+    {
+      "id": "1",
+      "type": "input", // use "input" for IV, "output" for DV, omit type for others
+      "data": { "label": "IV: Variable Name" },
+      "position": { "x": 100, "y": 200 }, // approximate a good layout
+      "style": { "background": "#1a1a1a", "color": "#60a5fa", "border": "1px solid #3b82f6", "borderRadius": "8px", "padding": "10px" } // Use different colors (e.g. blue for IV, green for DV, yellow for Moderator, gray for Control)
+    }
   ],
-  "contradicting_papers": [
-    { "title": "Paper Title", "quote": "Relevant quote contradicting the hypothesis." }
+  "edges": [
+    {
+      "id": "e1-2",
+      "source": "1",
+      "target": "2",
+      "animated": true,
+      "label": "Relationship",
+      "style": { "stroke": "#ef4444" }
+    }
   ]
 }
+
 Return only the raw JSON.
 `;
 
@@ -81,8 +67,15 @@ Return only the raw JSON.
       return NextResponse.json({ error: "Failed to parse AI response" }, { status: 500 });
     }
 
-    // Embed validation result for later retrieval
-    const vector = await embeddings.embedQuery(`Literature validation for hypothesis: ${hypothesis}. Verdict: ${parsed.verdict}`);
+    // Embed variable map result for later retrieval
+    const embeddings = new GoogleGenerativeAIEmbeddings({
+      apiKey: geminiKey,
+      model: "text-embedding-004",
+    });
+    
+    // Convert hypothesis to string if it's an object
+    const hypothesisStr = typeof hypothesis === 'string' ? hypothesis : JSON.stringify(hypothesis);
+    const vector = await embeddings.embedQuery(`Variable map for hypothesis: ${hypothesisStr}`);
 
     await supabase.from("Documents").insert({
       content: JSON.stringify(parsed),
@@ -90,7 +83,7 @@ Return only the raw JSON.
       metadata: {
         project_id,
         phase: 3,
-        type: "literature_validation",
+        type: "variable_map",
       },
     });
 

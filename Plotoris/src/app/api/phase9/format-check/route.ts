@@ -1,16 +1,12 @@
 import { NextResponse } from "next/server";
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { getLLM } from "@/lib/ai-provider";
 import { supabase } from "@/lib/supabase";
 
 export async function POST(req: Request) {
   try {
     const { journal, project_id } = await req.json();
-    const geminiKey = req.headers.get("x-gemini-key") || process.env.GEMINI_API_KEY;
-
     if (!journal) return NextResponse.json({ error: "Journal name is required" }, { status: 400 });
     if (!project_id) return NextResponse.json({ error: "project_id is required" }, { status: 400 });
-    if (!geminiKey) return NextResponse.json({ error: "Gemini API key required" }, { status: 401 });
-
     // ── 1. Fetch real journal metadata from OpenAlex ──────────────────────────
     let journalMeta: any = null;
     try {
@@ -32,7 +28,7 @@ export async function POST(req: Request) {
     const contextStr = docs?.map(d => d.content).join("\n\n").slice(0, 4000) || "";
 
     // ── 3. Gemini: generate compliance checklist against real journal guidelines ─
-    const model = new ChatGoogleGenerativeAI({ apiKey: geminiKey, model: "gemini-2.0-flash", temperature: 0.1 });
+    const model = getLLM(req, 0.1, "gemini-2.0-flash");
 
     const journalInfo = journalMeta
       ? `Journal: ${journalMeta.display_name}, Publisher: ${journalMeta.host_organization_name}, ISSN: ${journalMeta.issn_l}, H-index: ${journalMeta.summary_stats?.h_index}`

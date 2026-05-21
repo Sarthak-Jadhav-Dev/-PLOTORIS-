@@ -1,15 +1,11 @@
 import { NextResponse } from "next/server";
-import { ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { getLLM, getEmbeddings } from "@/lib/ai-provider";
 import { supabase } from "@/lib/supabase";
 
 export async function POST(req: Request) {
   try {
     const { project_id, oaPreference, speed } = await req.json();
-    const geminiKey = req.headers.get("x-gemini-key") || process.env.GEMINI_API_KEY;
-
     if (!project_id) return NextResponse.json({ error: "project_id is required" }, { status: 400 });
-    if (!geminiKey) return NextResponse.json({ error: "Gemini API key required" }, { status: 401 });
-
     // ── 1. Retrieve full project context from all phases ──────────────────────
     const { data: docs } = await supabase
       .from("Documents")
@@ -26,7 +22,7 @@ export async function POST(req: Request) {
     }).join("\n\n") || "No prior context.";
 
     // ── 2. Extract keywords from context for real API search ─────────────────
-    const model = new ChatGoogleGenerativeAI({ apiKey: geminiKey, model: "gemini-2.0-flash", temperature: 0.1 });
+    const model = getLLM(req, 0.1, "gemini-2.0-flash");
 
     const kwPrompt = `Extract 3-5 concise academic search keywords from this project context. Return only a JSON array of strings: ["keyword1", "keyword2"]\n\n${contextStr.slice(0, 3000)}`;
     const kwResponse = await model.invoke(kwPrompt);
@@ -103,7 +99,7 @@ Return ONLY raw JSON.`;
     }
 
     // ── 5. Embed and store recommendation for project history ─────────────────
-    const embeddings = new GoogleGenerativeAIEmbeddings({ apiKey: geminiKey, model: "text-embedding-004" });
+    const embeddings = getEmbeddings(req);
     const vector = await embeddings.embedQuery(`Journal recommendations: ${result.journals?.map((j: any) => j.name).join(", ")}`);
     await supabase.from("Documents").insert({
       content: JSON.stringify(result),

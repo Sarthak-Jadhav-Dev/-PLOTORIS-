@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
+import { getLLM } from "@/lib/ai-provider";
 import { createClient } from "@supabase/supabase-js";
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages";
 
 const supabase = createClient(
@@ -71,12 +71,7 @@ export async function POST(request: Request) {
       new HumanMessage(messages[messages.length - 1].content),
     ];
 
-    const model = new ChatGoogleGenerativeAI({
-      model: "gemini-1.5-flash",
-      temperature: 0.65,
-      apiKey: process.env.GOOGLE_API_KEY,
-      streaming: true,
-    });
+    const model = getLLM(request, 0.65, "gemini-1.5-flash");
 
     const encoder = new TextEncoder();
     let fullResponse = "";

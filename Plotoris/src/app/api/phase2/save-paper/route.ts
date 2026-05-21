@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { getEmbeddings } from "@/lib/ai-provider";
 import { supabase } from "@/lib/supabase";
 
 export async function POST(req: Request) {
@@ -7,20 +7,13 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { paper, project_id } = body;
     
-    const geminiKey = req.headers.get("x-gemini-key") || process.env.GEMINI_API_KEY;
-
     if (!paper || !project_id) {
       return NextResponse.json({ error: "Paper details and project ID are required." }, { status: 400 });
     }
-    if (!geminiKey) {
-      return NextResponse.json({ error: "Gemini API key is required for embedding." }, { status: 401 });
-    }
+    
 
     // Embed the paper abstract
-    const embeddings = new GoogleGenerativeAIEmbeddings({
-      apiKey: geminiKey,
-      model: "text-embedding-004",
-    });
+    const embeddings = getEmbeddings(req);
 
     const textToEmbed = `Title: ${paper.title}\nAuthors: ${paper.authors}\nYear: ${paper.year}\nAbstract: ${paper.abstract}`;
     const vector = await embeddings.embedQuery(textToEmbed);

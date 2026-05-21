@@ -128,7 +128,13 @@ export default function ChatSidebar({
                         setAllowedPhases(me.allowed_phases || []);
                     }
                 } else {
-                    setAllowedPhases([]); // strict
+                    // Edge case: if user accidentally saved the mock team (admin@plotoris.com)
+                    const hasMockAdmin = team.some((m: any) => m.email === "admin@plotoris.com" && m.role === "ADMIN");
+                    if (hasMockAdmin && team.length <= 2) {
+                        setAllowedPhases("ALL"); // Auto-recover from mock data bug
+                    } else {
+                        setAllowedPhases([]); // strict
+                    }
                 }
             } else {
                 setAllowedPhases("ALL"); // default open if not configured

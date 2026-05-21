@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { getLLM, getEmbeddings } from "@/lib/ai-provider";
 import { supabase } from "@/lib/supabase";
 
 export async function POST(req: Request) {
@@ -8,24 +8,15 @@ export async function POST(req: Request) {
     const { research_question, problem_context, project_id } = body;
     
     // Retrieve Gemini API key from headers or environment
-    const geminiKey = req.headers.get("x-gemini-key") || process.env.GEMINI_API_KEY;
-
     if (!research_question) {
       return NextResponse.json({ error: "Research question is required" }, { status: 400 });
     }
 
-    if (!geminiKey) {
-      return NextResponse.json({ 
-        error: "Gemini API key is required. Please set it in Project Settings." 
-      }, { status: 401 });
-    }
+    
 
     // 1. Embed and Store User Question
     try {
-      const embeddings = new GoogleGenerativeAIEmbeddings({
-        apiKey: geminiKey,
-        model: "text-embedding-004",
-      });
+      const embeddings = getEmbeddings(req);
 
       const userVector = await embeddings.embedQuery(research_question);
 
@@ -45,11 +36,7 @@ export async function POST(req: Request) {
     }
 
     // 2. Evaluate Question with Gemini
-    const model = new ChatGoogleGenerativeAI({
-      apiKey: geminiKey,
-      model: "gemini-2.0-flash",
-      temperature: 0.2,
-    });
+    const model = getLLM(req, 0.2, "gemini-2.0-flash");
 
     const prompt = `
       You are an expert academic research advisor.
@@ -92,23 +79,37 @@ export async function POST(req: Request) {
     let parsedResult;
     try {
       let contentStr = aiResponse.content.toString().trim();
-      const jsonMatch = contentStr.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        parsedResult = JSON.parse(jsonMatch[0]);
-      } else {
-        parsedResult = JSON.parse(contentStr);
+      contentStr = contentStr.replace(/```(?:json)?/gi, '').replace(/```/g, '').trim();
+      
+      // Fix unescaped newlines inside strings which break JSON.parse
+      contentStr = contentStr.replace(/[\r\n]+/g, ' ');
+      
+      const startIndex = contentStr.indexOf('{');
+      let endIndex = contentStr.lastIndexOf('}');
+      
+      if (startIndex !== -1 && endIndex !== -1 && endIndex >= startIndex) {
+        contentStr = contentStr.substring(startIndex, endIndex + 1);
       }
-    } catch (parseErr) {
-      console.error("Parse Error. LLM returned:", aiResponse.content.toString());
-      return NextResponse.json({ error: "Failed to parse AI response. Please try again." }, { status: 500 });
+      
+      // Auto-append missing closing braces if LLM truncated the JSON
+      const openBraces = (contentStr.match(/\{/g) || []).length;
+      const closeBraces = (contentStr.match(/\}/g) || []).length;
+      if (openBraces > closeBraces) {
+        contentStr += '}'.repeat(openBraces - closeBraces);
+      }
+      
+      parsedResult = JSON.parse(contentStr);
+    } catch (parseErr: any) {
+      const rawOutput = aiResponse.content.toString();
+      console.error("Parse Error. LLM returned:", rawOutput);
+      return NextResponse.json({ 
+        error: `Failed to parse AI response. ${parseErr.message}. LLM Output: ${rawOutput.substring(0, 150)}...` 
+      }, { status: 500 });
     }
 
     // 3. Embed and Store AI Response
     try {
-      const embeddings = new GoogleGenerativeAIEmbeddings({
-        apiKey: geminiKey,
-        model: "text-embedding-004",
-      });
+      const embeddings = getEmbeddings(req);
 
       const aiTextToEmbed = `AI Evaluation of Research Question: 
 Overall Score: ${parsedResult.overall_score} 

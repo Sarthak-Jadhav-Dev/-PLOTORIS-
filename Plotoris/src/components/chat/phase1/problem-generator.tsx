@@ -38,9 +38,19 @@ export default function ProblemGenerator({ projectId, onProblemSelected }: Probl
     setProblems([]);
     
     try {
-      const geminiKey = projectId ? localStorage.getItem(`plotoris_gemini_key_${projectId}`) || "" : "";
+      const activeTextProvider = projectId ? localStorage.getItem(`plotoris_active_text_provider_${projectId}`) || "gemini" : "gemini";
+      const activeEmbeddingProvider = projectId ? localStorage.getItem(`plotoris_active_embedding_provider_${projectId}`) || "gemini" : "gemini";
+      const textKey = projectId ? localStorage.getItem(`plotoris_${activeTextProvider}_key_${projectId}`) || "" : "";
+      const embeddingKey = projectId ? localStorage.getItem(`plotoris_${activeEmbeddingProvider}_key_${projectId}`) || "" : "";
       const headers: any = { "Content-Type": "application/json" };
-      if (geminiKey) headers["x-gemini-key"] = geminiKey;
+      if (textKey) {
+        headers["x-api-key"] = textKey;
+        headers["x-api-provider"] = activeTextProvider;
+      }
+      if (embeddingKey) {
+        headers["x-embedding-key"] = embeddingKey;
+        headers["x-embedding-provider"] = activeEmbeddingProvider;
+      }
 
       const res = await fetch("/api/phase1/generate-problems", {
         method: "POST",
@@ -162,8 +172,10 @@ export default function ProblemGenerator({ projectId, onProblemSelected }: Probl
       <AnimatePresence>
         {analysis && (
           <motion.div 
+            key="analysis-panel"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
             className="bg-blue-500/5 border border-blue-500/20 rounded-xl p-4"
           >
             <h4 className="text-blue-400 text-xs font-bold uppercase tracking-wider mb-2">Domain Analysis</h4>
@@ -173,8 +185,10 @@ export default function ProblemGenerator({ projectId, onProblemSelected }: Probl
 
         {problems.length > 0 && (
           <motion.div 
+            key="problems-list"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
             className="grid grid-cols-1 md:grid-cols-2 gap-4"
           >
             {problems.map((prob, i) => (

@@ -1,27 +1,20 @@
 import { NextResponse } from "next/server";
-import { ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { getLLM, getEmbeddings } from "@/lib/ai-provider";
 import { supabase } from "@/lib/supabase";
 
 export async function POST(req: Request) {
   try {
     const { hypothesis, project_id } = await req.json();
-    const geminiKey = req.headers.get("x-gemini-key") || process.env.GEMINI_API_KEY;
-
     if (!hypothesis) {
       return NextResponse.json({ error: "Hypothesis is required" }, { status: 400 });
     }
     if (!project_id) {
       return NextResponse.json({ error: "project_id is required" }, { status: 400 });
     }
-    if (!geminiKey) {
-      return NextResponse.json({ error: "Gemini API key required" }, { status: 401 });
-    }
+    
 
     // Embed the hypothesis to search against the literature corpus
-    const embeddings = new GoogleGenerativeAIEmbeddings({
-      apiKey: geminiKey,
-      model: "text-embedding-004",
-    });
+    const embeddings = getEmbeddings(req);
     const queryEmbedding = await embeddings.embedQuery(hypothesis);
 
     // Call match_documents RPC to find relevant paper chunks
@@ -42,11 +35,7 @@ export async function POST(req: Request) {
       ? matchedDocs.map((doc: any) => `Paper: ${doc.metadata?.title || 'Unknown'}\nContent: ${doc.content}`).join("\n\n")
       : "";
 
-    const model = new ChatGoogleGenerativeAI({
-      apiKey: geminiKey,
-      model: "gemini-2.0-flash",
-      temperature: 0.1,
-    });
+    const model = getLLM(req, 0.1, "gemini-2.0-flash");
 
     const prompt = `
 You are a peer reviewer verifying if a hypothesis is supported or contradicted by the existing literature corpus.

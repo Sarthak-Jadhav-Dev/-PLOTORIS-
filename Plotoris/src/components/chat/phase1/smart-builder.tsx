@@ -24,9 +24,19 @@ export default function SmartBuilder({ projectId, problemContext, questionContex
     setResult(null);
     
     try {
-      const geminiKey = projectId ? localStorage.getItem(`plotoris_gemini_key_${projectId}`) || "" : "";
+      const activeTextProvider = projectId ? localStorage.getItem(`plotoris_active_text_provider_${projectId}`) || "gemini" : "gemini";
+      const activeEmbeddingProvider = projectId ? localStorage.getItem(`plotoris_active_embedding_provider_${projectId}`) || "gemini" : "gemini";
+      const textKey = projectId ? localStorage.getItem(`plotoris_${activeTextProvider}_key_${projectId}`) || "" : "";
+      const embeddingKey = projectId ? localStorage.getItem(`plotoris_${activeEmbeddingProvider}_key_${projectId}`) || "" : "";
       const headers: any = { "Content-Type": "application/json" };
-      if (geminiKey) headers["x-gemini-key"] = geminiKey;
+      if (textKey) {
+        headers["x-api-key"] = textKey;
+        headers["x-api-provider"] = activeTextProvider;
+      }
+      if (embeddingKey) {
+        headers["x-embedding-key"] = embeddingKey;
+        headers["x-embedding-provider"] = activeEmbeddingProvider;
+      }
 
       const res = await fetch("/api/phase1/smart-conversion", {
         method: "POST",

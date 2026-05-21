@@ -1,18 +1,14 @@
 import { NextResponse } from "next/server";
-import { ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { getLLM, getEmbeddings } from "@/lib/ai-provider";
 import { supabase } from "@/lib/supabase";
 
 export async function POST(req: Request) {
   try {
     const { project_id, population, confidence, margin, dropout } = await req.json();
-    const geminiKey = req.headers.get("x-gemini-key") || process.env.GEMINI_API_KEY;
-
     if (!project_id) {
       return NextResponse.json({ error: "project_id is required" }, { status: 400 });
     }
-    if (!geminiKey) {
-      return NextResponse.json({ error: "Gemini API key required" }, { status: 401 });
-    }
+    
 
     // Fetch previous hypothesis & design from Phase 3/4
     const { data: docs, error: fetchError } = await supabase
@@ -27,11 +23,7 @@ export async function POST(req: Request) {
 
     const contextStr = docs?.map(d => d.content).join("\n") || "No previous context found.";
 
-    const model = new ChatGoogleGenerativeAI({
-      apiKey: geminiKey,
-      model: "gemini-2.0-flash",
-      temperature: 0.1,
-    });
+    const model = getLLM(req, 0.1, "gemini-2.0-flash");
 
     const prompt = `
 You are an expert statistician. Review the following project context (hypothesis and research design):
@@ -66,10 +58,7 @@ Return only the raw JSON.
     }
 
     // Embed and store
-    const embeddings = new GoogleGenerativeAIEmbeddings({
-      apiKey: geminiKey,
-      model: "text-embedding-004",
-    });
+    const embeddings = getEmbeddings(req);
     const vector = await embeddings.embedQuery(`Sample size calculation: ${parsed.recommended_size}. Power: ${parsed.power}`);
 
     await supabase.from("Documents").insert({

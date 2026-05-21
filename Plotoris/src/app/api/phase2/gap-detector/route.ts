@@ -1,20 +1,14 @@
 import { NextResponse } from "next/server";
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { getLLM } from "@/lib/ai-provider";
 import { supabase } from "@/lib/supabase";
 
 export async function POST(req: Request) {
   try {
     const { project_id } = await req.json();
 
-    const geminiKey = req.headers.get("x-gemini-key") || process.env.GEMINI_API_KEY;
-
     if (!project_id) {
       return NextResponse.json({ error: "Project ID is required" }, { status: 400 });
     }
-    if (!geminiKey) {
-      return NextResponse.json({ error: "Gemini API key is required." }, { status: 401 });
-    }
-
     // Retrieve all fetched_paper and paper_chunk documents for this project
     const { data: documents, error } = await supabase
       .from("Documents")
@@ -33,11 +27,7 @@ export async function POST(req: Request) {
     // Limit context length by selecting a subset or summarizing, but for now we concatenate up to ~30k chars
     const combinedContext = documents.map(d => `Title: ${d.metadata.title}\nContent: ${d.content}`).join("\n\n").substring(0, 40000);
 
-    const model = new ChatGoogleGenerativeAI({
-      apiKey: geminiKey,
-      model: "gemini-2.0-flash",
-      temperature: 0.3,
-    });
+    const model = getLLM(req, 0.3, "gemini-2.0-flash");
 
     const prompt = `
       You are a postdoctoral researcher specializing in literature review analysis.

@@ -33,13 +33,26 @@ export default function ProjectSettingsDialog({ open, onOpenChange, project }: P
   const [saved, setSaved] = useState(false);
 
   // API State
-  const [apiKey, setApiKey] = useState("");
+  const [geminiKey, setGeminiKey] = useState("");
+  const [groqKey, setGroqKey] = useState("");
+  const [openAiKey, setOpenAiKey] = useState("");
+  const [cohereKey, setCohereKey] = useState("");
+  const [activeTextProvider, setActiveTextProvider] = useState<"gemini" | "groq" | "openai">("gemini");
+  const [activeEmbeddingProvider, setActiveEmbeddingProvider] = useState<"gemini" | "openai" | "cohere">("gemini");
 
   // Team State
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([
-    { id: "1", email: "admin@plotoris.com", role: "ADMIN", allowed_phases: [] },
-    { id: "2", email: "researcher@plotoris.com", role: "MEMBER", allowed_phases: ["p1", "p2", "p3"] }
-  ]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [userEmail, setUserEmail] = useState("");
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) {
+        try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            if (payload.email) setUserEmail(payload.email);
+        } catch {}
+    }
+  }, []);
   const [newEmail, setNewEmail] = useState("");
   const allPhases = [
     { id: "p1", name: "Phase 1: Project Scope" },
@@ -56,20 +69,48 @@ export default function ProjectSettingsDialog({ open, onOpenChange, project }: P
 
   useEffect(() => {
     if (project?.id) {
-      const storedKey = localStorage.getItem(`plotoris_gemini_key_${project.id}`);
-      if (storedKey) setApiKey(storedKey);
+      const storedGemini = localStorage.getItem(`plotoris_gemini_key_${project.id}`);
+      if (storedGemini) setGeminiKey(storedGemini);
+      
+      const storedGroq = localStorage.getItem(`plotoris_groq_key_${project.id}`);
+      if (storedGroq) setGroqKey(storedGroq);
+      
+      const storedOpenAi = localStorage.getItem(`plotoris_openai_key_${project.id}`);
+      if (storedOpenAi) setOpenAiKey(storedOpenAi);
+      
+      const storedCohere = localStorage.getItem(`plotoris_cohere_key_${project.id}`);
+      if (storedCohere) setCohereKey(storedCohere);
+      
+      const storedTextProvider = localStorage.getItem(`plotoris_active_text_provider_${project.id}`);
+      if (storedTextProvider === "gemini" || storedTextProvider === "groq" || storedTextProvider === "openai") {
+        setActiveTextProvider(storedTextProvider);
+      }
+
+      const storedEmbeddingProvider = localStorage.getItem(`plotoris_active_embedding_provider_${project.id}`);
+      if (storedEmbeddingProvider === "gemini" || storedEmbeddingProvider === "openai" || storedEmbeddingProvider === "cohere") {
+        setActiveEmbeddingProvider(storedEmbeddingProvider);
+      }
       
       const storedTeam = localStorage.getItem(`plotoris_team_${project.id}`);
-      if (storedTeam) setTeamMembers(JSON.parse(storedTeam));
+      if (storedTeam) {
+          setTeamMembers(JSON.parse(storedTeam));
+      } else if (userEmail) {
+          setTeamMembers([{ id: Date.now().toString(), email: userEmail, role: "ADMIN", allowed_phases: [] }]);
+      }
     }
-  }, [project?.id]);
+  }, [project?.id, userEmail]);
 
   const handleSave = async () => {
     setIsSaving(true);
     await new Promise(r => setTimeout(r, 800));
     
     if (project?.id) {
-      localStorage.setItem(`plotoris_gemini_key_${project.id}`, apiKey);
+      localStorage.setItem(`plotoris_gemini_key_${project.id}`, geminiKey);
+      localStorage.setItem(`plotoris_groq_key_${project.id}`, groqKey);
+      localStorage.setItem(`plotoris_openai_key_${project.id}`, openAiKey);
+      localStorage.setItem(`plotoris_cohere_key_${project.id}`, cohereKey);
+      localStorage.setItem(`plotoris_active_text_provider_${project.id}`, activeTextProvider);
+      localStorage.setItem(`plotoris_active_embedding_provider_${project.id}`, activeEmbeddingProvider);
       localStorage.setItem(`plotoris_team_${project.id}`, JSON.stringify(teamMembers));
     }
 
@@ -222,14 +263,123 @@ export default function ProjectSettingsDialog({ open, onOpenChange, project }: P
               <div className="space-y-6">
                 <div>
                   <h3 className="text-lg font-semibold mb-1">Bring Your Own Key</h3>
-                  <p className="text-xs text-[#888] mb-6">Provide your own API key to bypass platform rate limits.</p>
+                  <p className="text-xs text-[#888] mb-6">Select your preferred AI provider and provide the corresponding API key. The selected provider will be used across all phases.</p>
                   
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-[#888] uppercase tracking-wider">Gemini API Key</label>
-                      <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="AIza..." className="w-full bg-[#050505] border border-[#333] text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 transition-colors" />
-                      <p className="text-[10px] text-[#555]">Keys are stored securely in your browser's local storage.</p>
+                  <div className="space-y-6">
+                    <div className="space-y-4 pb-6 border-b border-[#333]">
+                      <h4 className="text-sm font-bold text-white">1. Text Generation AI</h4>
+                      <p className="text-xs text-[#888]">Used for chatting, analysis, and generating content.</p>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-[#888] uppercase tracking-wider">Active Provider</label>
+                        <div className="flex gap-4">
+                          <label className={`flex-1 flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${activeTextProvider === "gemini" ? "border-emerald-500 bg-emerald-500/10 text-emerald-400" : "border-[#333] bg-[#050505] text-[#888] hover:border-[#555]"}`}>
+                            <input type="radio" name="textProvider" value="gemini" checked={activeTextProvider === "gemini"} onChange={() => setActiveTextProvider("gemini")} className="hidden" />
+                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${activeTextProvider === "gemini" ? "border-emerald-500" : "border-[#555]"}`}>
+                              {activeTextProvider === "gemini" && <div className="w-2 h-2 rounded-full bg-emerald-500" />}
+                            </div>
+                            <span className="text-sm font-medium">Gemini</span>
+                          </label>
+                          <label className={`flex-1 flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${activeTextProvider === "groq" ? "border-orange-500 bg-orange-500/10 text-orange-400" : "border-[#333] bg-[#050505] text-[#888] hover:border-[#555]"}`}>
+                            <input type="radio" name="textProvider" value="groq" checked={activeTextProvider === "groq"} onChange={() => setActiveTextProvider("groq")} className="hidden" />
+                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${activeTextProvider === "groq" ? "border-orange-500" : "border-[#555]"}`}>
+                              {activeTextProvider === "groq" && <div className="w-2 h-2 rounded-full bg-orange-500" />}
+                            </div>
+                            <span className="text-sm font-medium">Groq</span>
+                          </label>
+                          <label className={`flex-1 flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${activeTextProvider === "openai" ? "border-blue-500 bg-blue-500/10 text-blue-400" : "border-[#333] bg-[#050505] text-[#888] hover:border-[#555]"}`}>
+                            <input type="radio" name="textProvider" value="openai" checked={activeTextProvider === "openai"} onChange={() => setActiveTextProvider("openai")} className="hidden" />
+                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${activeTextProvider === "openai" ? "border-blue-500" : "border-[#555]"}`}>
+                              {activeTextProvider === "openai" && <div className="w-2 h-2 rounded-full bg-blue-500" />}
+                            </div>
+                            <span className="text-sm font-medium">OpenAI</span>
+                          </label>
+                        </div>
+                      </div>
                     </div>
+
+                    <div className="space-y-4 pb-6 border-b border-[#333]">
+                      <h4 className="text-sm font-bold text-white">2. Embeddings AI</h4>
+                      <p className="text-xs text-[#888]">Used for vector search and storing semantic knowledge.</p>
+                      <div className="space-y-2">
+                        <label className="text-xs font-bold text-[#888] uppercase tracking-wider">Active Provider</label>
+                        <div className="flex gap-4">
+                          <label className={`flex-1 flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${activeEmbeddingProvider === "gemini" ? "border-emerald-500 bg-emerald-500/10 text-emerald-400" : "border-[#333] bg-[#050505] text-[#888] hover:border-[#555]"}`}>
+                            <input type="radio" name="embeddingProvider" value="gemini" checked={activeEmbeddingProvider === "gemini"} onChange={() => setActiveEmbeddingProvider("gemini")} className="hidden" />
+                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${activeEmbeddingProvider === "gemini" ? "border-emerald-500" : "border-[#555]"}`}>
+                              {activeEmbeddingProvider === "gemini" && <div className="w-2 h-2 rounded-full bg-emerald-500" />}
+                            </div>
+                            <span className="text-sm font-medium">Gemini</span>
+                          </label>
+                          <label className={`flex-1 flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${activeEmbeddingProvider === "cohere" ? "border-purple-500 bg-purple-500/10 text-purple-400" : "border-[#333] bg-[#050505] text-[#888] hover:border-[#555]"}`}>
+                            <input type="radio" name="embeddingProvider" value="cohere" checked={activeEmbeddingProvider === "cohere"} onChange={() => setActiveEmbeddingProvider("cohere")} className="hidden" />
+                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${activeEmbeddingProvider === "cohere" ? "border-purple-500" : "border-[#555]"}`}>
+                              {activeEmbeddingProvider === "cohere" && <div className="w-2 h-2 rounded-full bg-purple-500" />}
+                            </div>
+                            <span className="text-sm font-medium">Cohere</span>
+                          </label>
+                          <label className={`flex-1 flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${activeEmbeddingProvider === "openai" ? "border-blue-500 bg-blue-500/10 text-blue-400" : "border-[#333] bg-[#050505] text-[#888] hover:border-[#555]"}`}>
+                            <input type="radio" name="embeddingProvider" value="openai" checked={activeEmbeddingProvider === "openai"} onChange={() => setActiveEmbeddingProvider("openai")} className="hidden" />
+                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${activeEmbeddingProvider === "openai" ? "border-blue-500" : "border-[#555]"}`}>
+                              {activeEmbeddingProvider === "openai" && <div className="w-2 h-2 rounded-full bg-blue-500" />}
+                            </div>
+                            <span className="text-sm font-medium">OpenAI</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <h4 className="text-sm font-bold text-white">API Keys</h4>
+                      <div className={`space-y-2 p-4 rounded-xl border ${activeTextProvider === "gemini" || activeEmbeddingProvider === "gemini" ? "border-emerald-500/30 bg-emerald-500/5" : "border-[#222] bg-[#0a0a0a]"}`}>
+                        <div className="flex items-center justify-between">
+                          <label className={`text-xs font-bold uppercase tracking-wider ${activeTextProvider === "gemini" || activeEmbeddingProvider === "gemini" ? "text-emerald-400" : "text-[#888]"}`}>Google Gemini API Key</label>
+                        </div>
+                        <div className="flex gap-2">
+                          <input type="password" value={geminiKey} onChange={(e) => setGeminiKey(e.target.value)} placeholder="AIza..." className="flex-1 bg-[#050505] border border-[#333] text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 transition-colors font-mono" />
+                          <Button variant="outline" size="icon" onClick={() => navigator.clipboard.writeText(geminiKey)} className="border-[#333] hover:bg-[#222] text-[#888]" title="Copy Key">
+                            <Key size={14} />
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className={`space-y-2 p-4 rounded-xl border ${activeTextProvider === "groq" ? "border-orange-500/30 bg-orange-500/5" : "border-[#222] bg-[#0a0a0a]"}`}>
+                        <div className="flex items-center justify-between">
+                          <label className={`text-xs font-bold uppercase tracking-wider ${activeTextProvider === "groq" ? "text-orange-400" : "text-[#888]"}`}>Groq API Key</label>
+                        </div>
+                        <div className="flex gap-2">
+                          <input type="password" value={groqKey} onChange={(e) => setGroqKey(e.target.value)} placeholder="gsk_..." className="flex-1 bg-[#050505] border border-[#333] text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-orange-500 transition-colors font-mono" />
+                          <Button variant="outline" size="icon" onClick={() => navigator.clipboard.writeText(groqKey)} className="border-[#333] hover:bg-[#222] text-[#888]" title="Copy Key">
+                            <Key size={14} />
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className={`space-y-2 p-4 rounded-xl border ${activeTextProvider === "openai" || activeEmbeddingProvider === "openai" ? "border-blue-500/30 bg-blue-500/5" : "border-[#222] bg-[#0a0a0a]"}`}>
+                        <div className="flex items-center justify-between">
+                          <label className={`text-xs font-bold uppercase tracking-wider ${activeTextProvider === "openai" || activeEmbeddingProvider === "openai" ? "text-blue-400" : "text-[#888]"}`}>OpenAI API Key</label>
+                        </div>
+                        <div className="flex gap-2">
+                          <input type="password" value={openAiKey} onChange={(e) => setOpenAiKey(e.target.value)} placeholder="sk-..." className="flex-1 bg-[#050505] border border-[#333] text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 transition-colors font-mono" />
+                          <Button variant="outline" size="icon" onClick={() => navigator.clipboard.writeText(openAiKey)} className="border-[#333] hover:bg-[#222] text-[#888]" title="Copy Key">
+                            <Key size={14} />
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className={`space-y-2 p-4 rounded-xl border ${activeEmbeddingProvider === "cohere" ? "border-purple-500/30 bg-purple-500/5" : "border-[#222] bg-[#0a0a0a]"}`}>
+                        <div className="flex items-center justify-between">
+                          <label className={`text-xs font-bold uppercase tracking-wider ${activeEmbeddingProvider === "cohere" ? "text-purple-400" : "text-[#888]"}`}>Cohere API Key</label>
+                        </div>
+                        <div className="flex gap-2">
+                          <input type="password" value={cohereKey} onChange={(e) => setCohereKey(e.target.value)} placeholder="..." className="flex-1 bg-[#050505] border border-[#333] text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-purple-500 transition-colors font-mono" />
+                          <Button variant="outline" size="icon" onClick={() => navigator.clipboard.writeText(cohereKey)} className="border-[#333] hover:bg-[#222] text-[#888]" title="Copy Key">
+                            <Key size={14} />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <p className="text-[10px] text-[#555] text-center">Keys are stored securely in your browser's local storage.</p>
                   </div>
                 </div>
               </div>

@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
-import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { getEmbeddings } from "@/lib/ai-provider";
 import { supabase } from "@/lib/supabase";
 
 export async function POST(req: Request) {
   try {
     const { query, project_id } = await req.json();
-
-    const geminiKey = req.headers.get("x-gemini-key") || process.env.GEMINI_API_KEY;
 
     if (!query) {
       return NextResponse.json({ error: "Query is required" }, { status: 400 });
@@ -14,14 +12,7 @@ export async function POST(req: Request) {
     if (!project_id) {
       return NextResponse.json({ error: "Project ID is required" }, { status: 400 });
     }
-    if (!geminiKey) {
-      return NextResponse.json({ error: "Gemini API key is required." }, { status: 401 });
-    }
-
-    const embeddings = new GoogleGenerativeAIEmbeddings({
-      apiKey: geminiKey,
-      model: "text-embedding-004",
-    });
+    const embeddings = getEmbeddings(req);
 
     const queryEmbedding = await embeddings.embedQuery(query);
 

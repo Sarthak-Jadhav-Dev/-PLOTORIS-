@@ -1,6 +1,7 @@
+export const dynamic = 'force-dynamic';
 import { NextResponse } from "next/server";
+import { getEmbeddings } from "@/lib/ai-provider";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
-import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
 import { supabase } from "@/lib/supabase";
 const pdfParse = require("pdf-parse");
 import { StateGraph, START, END } from "@langchain/langgraph";
@@ -11,7 +12,6 @@ interface AgentState {
   fileBuffer: Buffer;
   fileName: string;
   projectId: string;
-  geminiKey: string;
   paperId: string;
   textContent: string;
   chunks: string[];
@@ -30,10 +30,6 @@ const graphState = {
     default: () => "",
   },
   projectId: {
-    value: (x: string, y: string) => y,
-    default: () => "",
-  },
-  geminiKey: {
     value: (x: string, y: string) => y,
     default: () => "",
   },
@@ -96,10 +92,7 @@ async function chunkTextNode(state: AgentState): Promise<Partial<AgentState>> {
 async function embedNode(state: AgentState): Promise<Partial<AgentState>> {
   if (state.error) return {};
   try {
-    const embeddings = new GoogleGenerativeAIEmbeddings({
-      apiKey: state.geminiKey,
-      model: "text-embedding-004",
-    });
+    const embeddings = getEmbeddings(globalReq);
 
     const records = [];
     const batchSize = 10;
@@ -170,18 +163,16 @@ const workflow = new StateGraph<AgentState>({ channels: graphState as any })
 
 const app = workflow.compile();
 
+let globalReq: Request;
 export async function POST(req: Request) {
+  globalReq = req;
   try {
     const formData = await req.formData();
     const file = formData.get("file") as File;
     const project_id = formData.get("project_id") as string;
     
-    const geminiKey = req.headers.get("x-gemini-key") || process.env.GEMINI_API_KEY;
-
     if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
     if (!project_id) return NextResponse.json({ error: "Project ID is required" }, { status: 400 });
-    if (!geminiKey) return NextResponse.json({ error: "Gemini API key is required." }, { status: 401 });
-
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     const paper_id = crypto.randomUUID();
@@ -191,7 +182,6 @@ export async function POST(req: Request) {
       fileBuffer: buffer,
       fileName: file.name,
       projectId: project_id,
-      geminiKey: geminiKey,
       paperId: paper_id,
       textContent: "",
       chunks: [],

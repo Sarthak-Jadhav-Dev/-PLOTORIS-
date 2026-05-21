@@ -42,9 +42,19 @@ export default function PaperFetcher({
     setAddingIds(prev => new Set(prev).add(paper.id));
     
     try {
-      const geminiKey = localStorage.getItem(`plotoris_gemini_key_${projectId}`) || "";
+      const activeTextProvider = localStorage.getItem(`plotoris_active_text_provider_${projectId}`) || "gemini";
+      const activeEmbeddingProvider = localStorage.getItem(`plotoris_active_embedding_provider_${projectId}`) || "gemini";
+      const textKey = localStorage.getItem(`plotoris_${activeTextProvider}_key_${projectId}`) || "";
+      const embeddingKey = localStorage.getItem(`plotoris_${activeEmbeddingProvider}_key_${projectId}`) || "";
       const headers: any = { "Content-Type": "application/json" };
-      if (geminiKey) headers["x-gemini-key"] = geminiKey;
+      if (textKey) {
+        headers["x-api-key"] = textKey;
+        headers["x-api-provider"] = activeTextProvider;
+      }
+      if (embeddingKey) {
+        headers["x-embedding-key"] = embeddingKey;
+        headers["x-embedding-provider"] = activeEmbeddingProvider;
+      }
 
       const res = await fetch("/api/phase2/save-paper", {
         method: "POST",

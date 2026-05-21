@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
+import { getLLM } from "@/lib/ai-provider";
 import { createClient } from "@supabase/supabase-js";
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { StateGraph, START, END } from "@langchain/langgraph";
 import { RunnableConfig } from "@langchain/core/runnables";
@@ -23,12 +23,10 @@ interface DraftState {
   finalDraft: string;
 }
 
-// Model instance
-const getModel = () => new ChatGoogleGenerativeAI({
-  model: "gemini-1.5-pro",
-  temperature: 0.7,
-  apiKey: process.env.GOOGLE_API_KEY,
-});
+let globalReq: Request;
+const getModel = () => {
+  return getLLM(globalReq, 0.7, "gemini-1.5-pro");
+};
 
 async function fetchContext(state: DraftState): Promise<Partial<DraftState>> {
   const { data: claims } = await supabase
@@ -111,6 +109,7 @@ function compileDraft(state: DraftState): Partial<DraftState> {
 }
 
 export async function POST(request: Request) {
+  globalReq = request;
   try {
     const { projectId } = await request.json();
     if (!projectId) return NextResponse.json({ error: "Missing projectId" }, { status: 400 });

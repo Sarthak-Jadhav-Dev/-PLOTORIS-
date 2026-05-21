@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { getLLM, getEmbeddings } from "@/lib/ai-provider";
 import { supabase } from "@/lib/supabase";
 
 export async function POST(req: Request) {
@@ -7,21 +7,11 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { custom_idea, project_id } = body;
     
-    const geminiKey = req.headers.get("x-gemini-key") || process.env.GEMINI_API_KEY;
-
     if (!custom_idea) {
       return NextResponse.json({ error: "Custom idea is required" }, { status: 400 });
     }
-    if (!geminiKey) {
-      return NextResponse.json({ error: "Gemini API key is required." }, { status: 401 });
-    }
-
     // 1. Prompt Gemini to structure the raw text
-    const model = new ChatGoogleGenerativeAI({
-      apiKey: geminiKey,
-      model: "gemini-2.0-flash",
-      temperature: 0.2,
-    });
+    const model = getLLM(req, 0.2, "gemini-2.0-flash");
 
     const prompt = `
       You are an expert academic research advisor.
@@ -67,7 +57,7 @@ export async function POST(req: Request) {
     // 2. Embed user input and AI structured summary to Supabase
     if (project_id) {
       try {
-        const embeddings = new GoogleGenerativeAIEmbeddings({ apiKey: geminiKey, model: "text-embedding-004" });
+        const embeddings = getEmbeddings(req);
         
         const userVector = await embeddings.embedQuery(`User Direct Custom Idea: ${custom_idea}`);
         await supabase.from("Documents").insert({

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { getLLM, getEmbeddings } from "@/lib/ai-provider";
 import { supabase } from "@/lib/supabase";
 
 export async function POST(req: Request) {
@@ -7,17 +7,13 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { iv, dv, relationship, project_id } = body;
 
-    const geminiKey = req.headers.get("x-gemini-key") || process.env.GEMINI_API_KEY;
-
     if (!iv || !dv) {
       return NextResponse.json({ error: "IV and DV are required" }, { status: 400 });
     }
     if (!project_id) {
       return NextResponse.json({ error: "project_id is required" }, { status: 400 });
     }
-    if (!geminiKey) {
-      return NextResponse.json({ error: "Gemini API key is required" }, { status: 401 });
-    }
+    
 
     // ─── Step 1: Retrieve Phase 1 context ────────────────────────────────────
     const { data: phase1Docs, error: p1Error } = await supabase
@@ -33,10 +29,7 @@ export async function POST(req: Request) {
 
     // ─── Step 2: Retrieve Phase 2 literature gap context via pgvector RAG ────
     // Embed the user's IV + DV to find the most relevant literature
-    const embeddings = new GoogleGenerativeAIEmbeddings({
-      apiKey: geminiKey,
-      model: "text-embedding-004",
-    });
+    const embeddings = getEmbeddings(req);
 
     const queryText = `${iv} ${dv} ${relationship}`;
     const queryEmbedding = await embeddings.embedQuery(queryText);
@@ -58,11 +51,7 @@ export async function POST(req: Request) {
         : "No literature corpus found — generating based on domain knowledge.";
 
     // ─── Step 3: Call Gemini with full cross-phase context ───────────────────
-    const model = new ChatGoogleGenerativeAI({
-      apiKey: geminiKey,
-      model: "gemini-2.0-flash",
-      temperature: 0.2,
-    });
+    const model = getLLM(req, 0.2, "gemini-2.0-flash");
 
     const prompt = `You are an expert academic research advisor and scientific writer.
 A researcher is building a formal hypothesis for their study. Use ALL of the following context to craft a precise, rigorous hypothesis.

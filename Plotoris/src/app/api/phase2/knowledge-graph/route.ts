@@ -1,19 +1,13 @@
 import { NextResponse } from "next/server";
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { getLLM } from "@/lib/ai-provider";
 import { supabase } from "@/lib/supabase";
 
 export async function POST(req: Request) {
   try {
     const { project_id } = await req.json();
-    const geminiKey = req.headers.get("x-gemini-key") || process.env.GEMINI_API_KEY;
-
     if (!project_id) {
       return NextResponse.json({ error: "Project ID is required" }, { status: 400 });
     }
-    if (!geminiKey) {
-      return NextResponse.json({ error: "Gemini API key is required." }, { status: 401 });
-    }
-
     // Fetch the recent documents from this project to build the graph
     // We'll limit it to 20 recent chunks to avoid exceeding token limits
     const { data: documents, error: docError } = await supabase
@@ -37,11 +31,7 @@ export async function POST(req: Request) {
 
     const context = documents.map(d => d.content).join("\n\n---\n\n");
 
-    const llm = new ChatGoogleGenerativeAI({
-      apiKey: geminiKey,
-      model: "gemini-1.5-flash",
-      temperature: 0.1,
-    });
+    const llm = getLLM(req, 0.1, "gemini-1.5-flash");
 
     const prompt = `
     You are an expert researcher. Extract a knowledge graph from the provided research context.

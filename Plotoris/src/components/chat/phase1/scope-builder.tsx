@@ -25,10 +25,21 @@ export default function ScopeBuilder({ projectId, problemContext, questionContex
 
   const fetchSuggestions = async () => {
     setIsLoading(true);
+    setAiSuggestions(null);
     try {
-      const geminiKey = projectId ? localStorage.getItem(`plotoris_gemini_key_${projectId}`) || "" : "";
+      const activeTextProvider = projectId ? localStorage.getItem(`plotoris_active_text_provider_${projectId}`) || "gemini" : "gemini";
+      const activeEmbeddingProvider = projectId ? localStorage.getItem(`plotoris_active_embedding_provider_${projectId}`) || "gemini" : "gemini";
+      const textKey = projectId ? localStorage.getItem(`plotoris_${activeTextProvider}_key_${projectId}`) || "" : "";
+      const embeddingKey = projectId ? localStorage.getItem(`plotoris_${activeEmbeddingProvider}_key_${projectId}`) || "" : "";
       const headers: any = { "Content-Type": "application/json" };
-      if (geminiKey) headers["x-gemini-key"] = geminiKey;
+      if (textKey) {
+        headers["x-api-key"] = textKey;
+        headers["x-api-provider"] = activeTextProvider;
+      }
+      if (embeddingKey) {
+        headers["x-embedding-key"] = embeddingKey;
+        headers["x-embedding-provider"] = activeEmbeddingProvider;
+      }
 
       const res = await fetch("/api/phase1/scope-suggestions", {
         method: "POST",
@@ -41,9 +52,14 @@ export default function ScopeBuilder({ projectId, problemContext, questionContex
         })
       });
       const data = await res.json();
-      setAiSuggestions(data);
-    } catch (err) {
+      if (!res.ok || data.error) {
+        setAiSuggestions({ error: data.error || "Failed to generate suggestions. Please check your API key configuration." });
+      } else {
+        setAiSuggestions(data);
+      }
+    } catch (err: any) {
       console.error(err);
+      setAiSuggestions({ error: err.message || "Failed to connect to the server." });
     } finally {
       setIsLoading(false);
     }
@@ -128,20 +144,58 @@ export default function ScopeBuilder({ projectId, problemContext, questionContex
 
       <AnimatePresence>
         {aiSuggestions && (
-          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
-            <div>
-              <p className="text-sm text-indigo-200 mb-1"><strong>AI Suggestions Generated!</strong> Review the suggestions below and add them to your scope boundaries.</p>
-              <p className="text-xs text-indigo-400/80 italic">Tip: You don't need to accept all suggestions, pick what fits your resources.</p>
-            </div>
-            <Button size="sm" variant="outline" className="bg-[#1a1a1a] border-[#333] text-white whitespace-nowrap" onClick={() => {
-              setInclusions([...inclusions, ...aiSuggestions.inclusions.map((i:any) => i.item)]);
-              setExclusions([...exclusions, ...aiSuggestions.exclusions.map((i:any) => i.item)]);
-              setPopulation([...population, aiSuggestions.population.target, ...aiSuggestions.population.characteristics]);
-              setConstraints([...constraints, aiSuggestions.constraints.time_range, ...aiSuggestions.constraints.resources]);
-              setAiSuggestions(null);
-            }}>
-              Accept All
-            </Button>
+          <motion.div 
+            initial={{ opacity: 0, height: 0 }} 
+            animate={{ opacity: 1, height: "auto" }} 
+            className={`border rounded-xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between ${
+              aiSuggestions.error 
+                ? "bg-red-500/10 border-red-500/20 text-red-200" 
+                : "bg-indigo-500/10 border-indigo-500/20 text-indigo-200"
+            }`}
+          >
+            {aiSuggestions.error ? (
+              <div className="flex-1">
+                <p className="text-sm font-semibold mb-1 text-red-200">Failed to Generate Suggestions</p>
+                <p className="text-xs text-red-400/80">{aiSuggestions.error}</p>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <p className="text-sm text-indigo-200 mb-1"><strong>AI Suggestions Generated!</strong> Review the suggestions below and add them to your scope boundaries.</p>
+                  <p className="text-xs text-indigo-400/80 italic">Tip: You don't need to accept all suggestions, pick what fits your resources.</p>
+                </div>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="bg-[#1a1a1a] border-[#333] text-white whitespace-nowrap" 
+                  onClick={() => {
+                    const newInclusions = Array.isArray(aiSuggestions.inclusions)
+                      ? aiSuggestions.inclusions.map((i: any) => typeof i === 'string' ? i : (i?.item || '')).filter(Boolean)
+                      : [];
+                    const newExclusions = Array.isArray(aiSuggestions.exclusions)
+                      ? aiSuggestions.exclusions.map((e: any) => typeof e === 'string' ? e : (e?.item || '')).filter(Boolean)
+                      : [];
+                    
+                    const targetPop = aiSuggestions.population?.target ? [aiSuggestions.population.target] : [];
+                    const targetChars = Array.isArray(aiSuggestions.population?.characteristics) ? aiSuggestions.population.characteristics : [];
+                    const newPopulation = [...targetPop, ...targetChars].filter(Boolean);
+                    
+                    const timeRange = aiSuggestions.constraints?.time_range ? [aiSuggestions.constraints.time_range] : [];
+                    const resources = Array.isArray(aiSuggestions.constraints?.resources) ? aiSuggestions.constraints.resources : [];
+                    const ethical = Array.isArray(aiSuggestions.constraints?.ethical) ? aiSuggestions.constraints.ethical : [];
+                    const newConstraints = [...timeRange, ...resources, ...ethical].filter(Boolean);
+
+                    setInclusions([...inclusions, ...newInclusions]);
+                    setExclusions([...exclusions, ...newExclusions]);
+                    setPopulation([...population, ...newPopulation]);
+                    setConstraints([...constraints, ...newConstraints]);
+                    setAiSuggestions(null);
+                  }}
+                >
+                  Accept All
+                </Button>
+              </>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

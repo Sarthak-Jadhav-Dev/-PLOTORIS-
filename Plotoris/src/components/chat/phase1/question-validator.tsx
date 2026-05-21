@@ -125,7 +125,7 @@ export default function QuestionValidator({ projectId, problemContext, onQuestio
               </div>
               
               <div className="flex-1 space-y-4 justify-center flex flex-col">
-                {Object.entries(result.dimension_scores).map(([dim, score]: [string, any]) => (
+                {Object.entries(result.dimension_scores || {}).map(([dim, score]: [string, any]) => (
                   <div key={dim} className="flex items-center gap-4">
                     <span className="w-24 text-sm text-[#888] capitalize">{dim}</span>
                     <div className="flex-1 h-2 bg-[#222] rounded-full overflow-hidden">
@@ -143,14 +143,14 @@ export default function QuestionValidator({ projectId, problemContext, onQuestio
             </div>
 
             {/* Issues Panel */}
-            {result.issues.length > 0 && (
+            {(result.issues?.length || 0) > 0 && (
               <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl p-6">
                 <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
                   <AlertTriangle size={18} className="text-orange-500" />
-                  Identified Issues ({result.issues.length})
+                  Identified Issues ({result.issues?.length})
                 </h3>
                 <div className="space-y-3">
-                  {result.issues.map((issue: any) => (
+                  {result.issues?.map((issue: any) => (
                     <div key={issue.id} className="bg-[#0d0d0d] border border-[#222] p-4 rounded-xl flex gap-3">
                       <div className="mt-0.5">
                         {issue.severity === "high" ? <AlertTriangle size={16} className="text-red-500" /> : <Info size={16} className="text-blue-400" />}
@@ -172,11 +172,12 @@ export default function QuestionValidator({ projectId, problemContext, onQuestio
             )}
 
             {/* Improved Versions */}
-            <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl p-6">
-              <h3 className="text-white font-semibold mb-4">Suggested Improvements</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {result.improved_versions.map((ver: any, i: number) => (
-                  <div key={i} className="bg-[#0d0d0d] border border-[#222] p-5 rounded-xl flex flex-col">
+            {(result.improved_versions?.length || 0) > 0 && (
+              <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl p-6">
+                <h3 className="text-white font-semibold mb-4">Suggested Improvements</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {result.improved_versions?.map((ver: any, i: number) => (
+                    <div key={i} className="bg-[#0d0d0d] border border-[#222] p-5 rounded-xl flex flex-col">
                     <p className="text-white font-medium text-sm leading-relaxed mb-4">"{ver.version}"</p>
                     <div className="mt-auto">
                       <p className="text-[10px] text-[#666] uppercase font-bold tracking-wider mb-1">Changes made</p>
@@ -196,6 +197,7 @@ export default function QuestionValidator({ projectId, problemContext, onQuestio
                 ))}
               </div>
             </div>
+            )}
 
             {/* Action Bar */}
             <div className="flex justify-end pt-4">

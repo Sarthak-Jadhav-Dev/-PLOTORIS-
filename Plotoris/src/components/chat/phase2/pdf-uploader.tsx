@@ -29,9 +29,19 @@ export default function PdfUploader({ projectId, onUploadComplete }: { projectId
       formData.append("file", file);
       formData.append("project_id", projectId);
       
-      const geminiKey = localStorage.getItem(`plotoris_gemini_key_${projectId}`) || "";
+      const activeTextProvider = localStorage.getItem(`plotoris_active_text_provider_${projectId}`) || "gemini";
+      const activeEmbeddingProvider = localStorage.getItem(`plotoris_active_embedding_provider_${projectId}`) || "gemini";
+      const textKey = localStorage.getItem(`plotoris_${activeTextProvider}_key_${projectId}`) || "";
+      const embeddingKey = localStorage.getItem(`plotoris_${activeEmbeddingProvider}_key_${projectId}`) || "";
       const headers: any = {};
-      if (geminiKey) headers["x-gemini-key"] = geminiKey;
+      if (textKey) {
+        headers["x-api-key"] = textKey;
+        headers["x-api-provider"] = activeTextProvider;
+      }
+      if (embeddingKey) {
+        headers["x-embedding-key"] = embeddingKey;
+        headers["x-embedding-provider"] = activeEmbeddingProvider;
+      }
 
       const res = await fetch("/api/phase2/upload-paper", {
         method: "POST",

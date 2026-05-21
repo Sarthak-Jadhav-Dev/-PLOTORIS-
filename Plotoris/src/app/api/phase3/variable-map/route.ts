@@ -1,27 +1,19 @@
 import { NextResponse } from "next/server";
-import { ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { getLLM, getEmbeddings } from "@/lib/ai-provider";
 import { supabase } from "@/lib/supabase";
 
 export async function POST(req: Request) {
   try {
     const { hypothesis, project_id } = await req.json();
-    const geminiKey = req.headers.get("x-gemini-key") || process.env.GEMINI_API_KEY;
-
     if (!hypothesis) {
       return NextResponse.json({ error: "Hypothesis is required" }, { status: 400 });
     }
     if (!project_id) {
       return NextResponse.json({ error: "project_id is required" }, { status: 400 });
     }
-    if (!geminiKey) {
-      return NextResponse.json({ error: "Gemini API key required" }, { status: 401 });
-    }
+    
 
-    const model = new ChatGoogleGenerativeAI({
-      apiKey: geminiKey,
-      model: "gemini-2.0-flash",
-      temperature: 0.1,
-    });
+    const model = getLLM(req, 0.1, "gemini-2.0-flash");
 
     const prompt = `
 You are an expert academic researcher designing a variable conceptual map based on the following hypothesis:
@@ -68,10 +60,7 @@ Return only the raw JSON.
     }
 
     // Embed variable map result for later retrieval
-    const embeddings = new GoogleGenerativeAIEmbeddings({
-      apiKey: geminiKey,
-      model: "text-embedding-004",
-    });
+    const embeddings = getEmbeddings(req);
     
     // Convert hypothesis to string if it's an object
     const hypothesisStr = typeof hypothesis === 'string' ? hypothesis : JSON.stringify(hypothesis);

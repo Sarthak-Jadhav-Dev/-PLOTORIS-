@@ -22,13 +22,7 @@ export default function PhaseSevenView({ projectId }: { projectId: string }) {
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#050505] text-[#d4d4d4] font-sans relative">
 
-      {/* Top Banner */}
-      <div className="bg-violet-500/10 border-b border-violet-500/20 px-4 py-2 flex items-center justify-center gap-2 shrink-0">
-        <Brain size={14} className="text-violet-400" />
-        <span className="text-xs font-semibold text-violet-300">
-          MARKET GAP ADDRESSED: Interpretation is entirely manual and disconnected from data. Plotoris automates it.
-        </span>
-      </div>
+
 
       {/* Header */}
       <div className="p-4 lg:px-8 pt-6 shrink-0">

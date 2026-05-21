@@ -23,7 +23,8 @@ import {
     BarChart2,
     FileEdit,
     Send,
-    PieChart
+    PieChart,
+    Lock
 } from "lucide-react";
 import Link from "next/link";
 
@@ -90,6 +91,8 @@ export default function ChatSidebar({
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [userName, setUserName] = useState("John Doe");
     const [userInitials, setUserInitials] = useState("JD");
+    const [userEmail, setUserEmail] = useState("");
+    const [allowedPhases, setAllowedPhases] = useState<string[] | "ALL">("ALL");
 
     // Extract user info from token
     useEffect(() => {
@@ -99,18 +102,39 @@ export default function ChatSidebar({
                 const payload = JSON.parse(atob(token.split('.')[1]));
                 if (payload.name) {
                     setUserName(payload.name);
-                    // Get initials
-                    const words = payload.name.split(' ');
-                    const initials = words.length > 1 
-                        ? words[0][0] + words[words.length - 1][0]
-                        : words[0].substring(0, 2);
-                    setUserInitials(initials.toUpperCase());
+                    const initials = payload.name.split(' ').map((n: string) => n[0]).join('').toUpperCase();
+                    setUserInitials(initials.substring(0, 2));
                 }
+                if (payload.email) setUserEmail(payload.email);
             } catch {
                 console.error("Failed to decode token");
             }
+        } else {
+            setUserEmail("researcher@plotoris.com");
         }
     }, []);
+
+    // Enforce RBAC
+    useEffect(() => {
+        if (activeProject?.id && userEmail) {
+            const storedTeam = localStorage.getItem(`plotoris_team_${activeProject.id}`);
+            if (storedTeam) {
+                const team = JSON.parse(storedTeam);
+                const me = team.find((m: any) => m.email === userEmail);
+                if (me) {
+                    if (me.role === "ADMIN") {
+                        setAllowedPhases("ALL");
+                    } else {
+                        setAllowedPhases(me.allowed_phases || []);
+                    }
+                } else {
+                    setAllowedPhases([]); // strict
+                }
+            } else {
+                setAllowedPhases("ALL"); // default open if not configured
+            }
+        }
+    }, [activeProject?.id, userEmail, isOpen]);
 
     return (
         <>
@@ -197,16 +221,30 @@ export default function ChatSidebar({
                                 </p>
                                 {RESEARCH_PHASES.map((phase) => {
                                     const Icon = phase.icon;
+                                    const isLocked = allowedPhases !== "ALL" && !allowedPhases.includes(phase.id);
+                                    
                                     return (
                                         <button
                                             key={phase.id}
-                                            onClick={() => onSelectChat(phase.id)}
-                                            className={`w-full text-left px-3 py-3 rounded-xl mb-1 flex items-center gap-3 group transition-all duration-200 ${activeChat === phase.id
+                                            onClick={() => {
+                                                if (isLocked) {
+                                                    alert("You do not have permission to access this phase.");
+                                                    return;
+                                                }
+                                                onSelectChat(phase.id);
+                                            }}
+                                            className={`w-full text-left px-3 py-3 rounded-xl mb-1 flex items-center gap-3 group transition-all duration-200 
+                                                ${isLocked ? 'opacity-50 cursor-not-allowed bg-transparent border-transparent' : ''}
+                                                ${activeChat === phase.id && !isLocked
                                                     ? `border text-white ${phase.bgColor || 'bg-[#1a1a1a]'} ${phase.borderColor || 'border-orange-primary/20'}`
-                                                    : `hover:bg-[#141414] text-[#888] hover:text-white ${phase.color ? `hover:${phase.color}` : ''}`
+                                                    : !isLocked ? `hover:bg-[#141414] text-[#888] hover:text-white ${phase.color ? `hover:${phase.color}` : ''}` : 'text-[#555]'
                                                 }`}
                                         >
-                                            <Icon size={15} className={activeChat === phase.id ? (phase.color || "text-orange-primary") : (phase.color || "text-[#555] group-hover:text-[#888]")} />
+                                            {isLocked ? (
+                                                <Lock size={15} className="text-[#555]" />
+                                            ) : (
+                                                <Icon size={15} className={activeChat === phase.id ? (phase.color || "text-orange-primary") : (phase.color || "text-[#555] group-hover:text-[#888]")} />
+                                            )}
                                             <span className="text-sm truncate flex-1 leading-snug">{phase.title}</span>
                                         </button>
                                     );

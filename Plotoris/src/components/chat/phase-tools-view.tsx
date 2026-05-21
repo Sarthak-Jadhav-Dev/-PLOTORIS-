@@ -122,13 +122,7 @@ export default function PhaseToolsView({ projectId }: { projectId: string }) {
 
   return (
     <div className="flex-1 overflow-y-auto bg-[#050505] text-[#d4d4d4] p-4 lg:p-8 font-sans relative">
-      {/* Top Banner */}
-      <div className="absolute top-0 left-0 right-0 bg-blue-500/10 border-b border-blue-500/20 px-4 py-2 flex items-center justify-center gap-2">
-        <Search size={14} className="text-blue-400" />
-        <span className="text-xs font-semibold text-blue-300">
-          MARKET GAP ADDRESSED: Connect any repository instantly and vectorize the exact files you need for AI analysis.
-        </span>
-      </div>
+
 
       <div className="max-w-5xl mx-auto space-y-8 mt-8">
         {/* Header */}

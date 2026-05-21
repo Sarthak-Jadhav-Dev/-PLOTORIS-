@@ -15,6 +15,8 @@ import PhaseOneView from "@/components/chat/phase1-view";
 import PhaseTwoView from "@/components/chat/phase2-view";
 import PhaseThreeView from "@/components/chat/phase3-view";
 import PhaseFourView from "@/components/chat/phase4-view";
+import PhaseToolsView from "@/components/chat/phase-tools-view";
+import PhaseHelperView from "@/components/chat/phase-helper-view";
 import PhaseFiveView from "@/components/chat/phase5-view";
 import PhaseSevenView from "@/components/chat/phase7-view";
 import PhaseEightView from "@/components/chat/phase8-view";
@@ -248,14 +250,18 @@ export default function ChatPage() {
                                 <PhaseThreeView projectId={activeProject?.id || ""} />
                             ) : activeChat === "p4" ? (
                                 <PhaseFourView projectId={activeProject?.id || ""} />
+                            ) : activeChat === "p-tools" ? (
+                                <PhaseToolsView projectId={activeProject?.id || ""} />
+                            ) : activeChat === "p-helper" ? (
+                                <PhaseHelperView projectId={activeProject?.id || ""} />
                             ) : activeChat === "p5" ? (
                                 <PhaseFiveView />
+                            ) : activeChat === "p6" ? (
+                                <PhaseSevenView projectId={activeProject?.id || ""} />
                             ) : activeChat === "p7" ? (
-                                <PhaseSevenView />
+                                <PhaseNineView projectId={activeProject?.id || ""} />
                             ) : activeChat === "p8" ? (
                                 <PhaseEightView />
-                            ) : activeChat === "p9" ? (
-                                <PhaseNineView projectId={activeProject?.id || ""} />
                             ) : (
                                 <>
                                     <ChatMessages messages={messages} />

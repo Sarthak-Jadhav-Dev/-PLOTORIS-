@@ -22,7 +22,8 @@ import {
     Database,
     BarChart2,
     FileEdit,
-    Send
+    Send,
+    PieChart
 } from "lucide-react";
 import Link from "next/link";
 
@@ -67,10 +68,12 @@ const RESEARCH_PHASES = [
     { id: "p2", title: "Study Existing Papers", icon: BookOpen },
     { id: "p3", title: "Formulating Hypothesis", icon: Lightbulb },
     { id: "p4", title: "Research Design", icon: PenTool },
-    { id: "p5", title: "Data Collection & Analysis", icon: Database },
-    { id: "p6", title: "Interpretation of Results", icon: BarChart2 },
-    { id: "p7", title: "Drafting Research Papers", icon: FileEdit },
-    { id: "p8", title: "Publication", icon: Send },
+    { id: "p-tools", title: "Phase 5: Research Tools", icon: Search, color: "text-blue-400", bgColor: "bg-blue-500/10", borderColor: "border-blue-500/30" },
+    { id: "p-helper", title: "Phase 6: Research Helper Tool", icon: PieChart, color: "text-fuchsia-400", bgColor: "bg-fuchsia-500/10", borderColor: "border-fuchsia-500/30" },
+    { id: "p5", title: "Phase 7: Data Collection & Analysis", icon: Database },
+    { id: "p6", title: "Phase 8: Interpretation of Results", icon: BarChart2 },
+    { id: "p7", title: "Phase 9: Drafting Research Papers", icon: FileEdit },
+    { id: "p8", title: "Phase 10: Publication", icon: Send },
 ];
 
 export default function ChatSidebar({
@@ -199,11 +202,11 @@ export default function ChatSidebar({
                                             key={phase.id}
                                             onClick={() => onSelectChat(phase.id)}
                                             className={`w-full text-left px-3 py-3 rounded-xl mb-1 flex items-center gap-3 group transition-all duration-200 ${activeChat === phase.id
-                                                    ? "bg-[#1a1a1a] border border-orange-primary/20 text-white"
-                                                    : "hover:bg-[#141414] text-[#888] hover:text-white"
+                                                    ? `border text-white ${phase.bgColor || 'bg-[#1a1a1a]'} ${phase.borderColor || 'border-orange-primary/20'}`
+                                                    : `hover:bg-[#141414] text-[#888] hover:text-white ${phase.color ? `hover:${phase.color}` : ''}`
                                                 }`}
                                         >
-                                            <Icon size={15} className={activeChat === phase.id ? "text-orange-primary" : "text-[#555] group-hover:text-[#888]"} />
+                                            <Icon size={15} className={activeChat === phase.id ? (phase.color || "text-orange-primary") : (phase.color || "text-[#555] group-hover:text-[#888]")} />
                                             <span className="text-sm truncate flex-1 leading-snug">{phase.title}</span>
                                         </button>
                                     );
@@ -216,15 +219,17 @@ export default function ChatSidebar({
                                         {group.category}
                                     </p>
                                     {group.chats.map((chat) => (
-                                        <button
+                                        <div
                                             key={chat.id}
                                             onClick={() => onSelectChat(chat.id)}
                                             onMouseEnter={() => setHoveredChat(chat.id)}
                                             onMouseLeave={() => setHoveredChat(null)}
-                                            className={`w-full text-left px-3 py-3 rounded-xl mb-1 flex items-center gap-3 group transition-all duration-200 ${activeChat === chat.id
+                                            className={`w-full text-left px-3 py-3 rounded-xl mb-1 flex items-center gap-3 group transition-all duration-200 cursor-pointer ${activeChat === chat.id
                                                     ? "bg-[#1a1a1a] border border-orange-primary/20 text-white"
                                                     : "hover:bg-[#141414] text-[#888] hover:text-white"
                                                 }`}
+                                            role="button"
+                                            tabIndex={0}
                                         >
                                             <MessageSquare size={15} className={activeChat === chat.id ? "text-orange-primary" : "text-[#555]"} />
                                             <span className="text-sm truncate flex-1">{chat.title}</span>
@@ -238,7 +243,7 @@ export default function ChatSidebar({
                                                     </button>
                                                 </div>
                                             )}
-                                        </button>
+                                        </div>
                                     ))}
                                 </div>
                             ))

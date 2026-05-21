@@ -2,142 +2,119 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, FileCheck, Kanban, MessageSquare, PenTool, LayoutDashboard, Target, Clock, MessageCircle, FileText } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Send, FileText, CheckCircle2, Loader2, Bot, Play } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
-import JournalRecommender from "@/components/chat/phase9/journal-recommender";
-import AutoFormatExporter from "@/components/chat/phase9/auto-format-exporter";
-import SubmissionTracker from "@/components/chat/phase9/submission-tracker";
-import PeerReviewManager from "@/components/chat/phase9/peer-review-manager";
-import RevisionAssistant from "@/components/chat/phase9/revision-assistant";
-
-type Tab = "dashboard" | "recommender" | "exporter" | "tracker" | "reviews" | "revision";
+import { CollaborationEditor } from "@/components/chat/phase9/collaboration-editor";
 
 export default function PhaseNineView({ projectId }: { projectId: string }) {
-  const [activeTab, setActiveTab] = useState<Tab>("dashboard");
+  const [isDrafting, setIsDrafting] = useState(false);
+  const [draftResult, setDraftResult] = useState<string | null>(null);
+  
+  const [logs, setLogs] = useState<{agent: string, status: string}[]>([]);
 
-  const tabs: { id: Tab; label: string }[] = [
-    { id: "dashboard", label: "Dashboard" },
-    { id: "recommender", label: "Journal Recommender" },
-    { id: "exporter", label: "Format Exporter" },
-    { id: "tracker", label: "Submission Tracker" },
-    { id: "reviews", label: "Peer Review Manager" },
-    { id: "revision", label: "Revision Assistant" },
-  ];
+  const startDrafting = async () => {
+    setIsDrafting(true);
+    setLogs([
+      { agent: "Context Compiler", status: "Fetching Phase 3 & 7 Data..." },
+      { agent: "Abstract Agent", status: "Starting..." },
+      { agent: "Introduction Agent", status: "Starting..." },
+      { agent: "Literature Agent", status: "Starting..." },
+      { agent: "Methodology Agent", status: "Starting..." },
+      { agent: "Results Agent", status: "Starting..." },
+      { agent: "Conclusion Agent", status: "Starting..." }
+    ]);
+    
+    // Simulate real-time progress updates for UX
+    setTimeout(() => {
+      setLogs(prev => prev.map(l => l.agent.includes("Compiler") ? { ...l, status: "Complete" } : { ...l, status: "Drafting in progress..." }));
+    }, 2000);
+
+    try {
+      const res = await fetch("/api/phase9/draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ projectId }),
+      });
+      const data = await res.json();
+      
+      setLogs(prev => prev.map(l => ({ ...l, status: "Complete" })));
+      setDraftResult(data.draft);
+    } catch (e) {
+      console.error(e);
+      setLogs(prev => prev.map(l => ({ ...l, status: "Failed" })));
+    } finally {
+      setIsDrafting(false);
+    }
+  };
 
   return (
-    <div className="flex-1 overflow-y-auto bg-[#050505] text-[#d4d4d4] p-4 lg:p-8 font-sans relative">
-
-      {/* Top Banner */}
-      <div className="absolute top-0 left-0 right-0 bg-teal-500/10 border-b border-teal-500/20 px-4 py-2 flex items-center justify-center gap-2">
-        <Send size={14} className="text-teal-400" />
-        <span className="text-xs font-semibold text-teal-300">
-          MARKET GAP ADDRESSED: Fragmented submission tracking across multiple platforms. Plotoris centralizes it.
-        </span>
-      </div>
-
-      <div className="max-w-7xl mx-auto space-y-6 mt-8">
-        {/* Header */}
-        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 border-b border-[#333] pb-6">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <Badge className="bg-[#ccfbf1] text-[#0f766e] hover:bg-[#ccfbf1] font-medium rounded-full px-3 py-0.5 border border-[#99f6e4]">
-                Phase 9
-              </Badge>
-              <h1 className="text-2xl font-bold text-white tracking-tight">Publication & Peer Review</h1>
-            </div>
-            <p className="text-[#888] text-sm">
-              Identify target journals, track submissions, manage reviewer comments, and automate revisions.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-1 bg-[#111] p-1 rounded-xl border border-[#333] overflow-x-auto max-w-full">
-            {tabs.map((tab) => (
-              <Button
-                key={tab.id}
-                variant="ghost"
-                size="sm"
-                className={`rounded-lg px-3 whitespace-nowrap ${activeTab === tab.id ? "bg-[#222] text-white shadow-sm" : "text-[#888] hover:text-white hover:bg-[#1a1a1a]"}`}
-                onClick={() => setActiveTab(tab.id)}
-              >
-                {tab.label}
-              </Button>
-            ))}
-          </div>
+    <div className="flex-1 flex h-full overflow-hidden bg-[#050505] text-[#d4d4d4] font-sans relative">
+      {/* Left Panel: Control Center */}
+      <div className="w-full lg:w-[35%] h-full border-r border-[#1a1a1a] flex flex-col bg-[#0a0a0a] z-20 shadow-xl">
+        
+        {/* Top Banner */}
+        <div className="bg-teal-500/10 border-b border-teal-500/20 px-4 py-2 flex items-center justify-center gap-2 shrink-0">
+          <Send size={14} className="text-teal-400" />
+          <span className="text-[10px] lg:text-xs font-semibold text-teal-300 truncate">
+            MARKET GAP: AI tools write generically. Our AI team uses your actual data.
+          </span>
         </div>
 
-        <AnimatePresence mode="wait">
-          {activeTab === "dashboard" && (
-            <motion.div key="dashboard" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+        <div className="p-6 border-b border-[#1a1a1a] shrink-0">
+          <div className="flex items-center gap-3 mb-3">
+            <Badge className="bg-[#ccfbf1] text-[#0f766e] hover:bg-[#ccfbf1] font-medium rounded-full px-3 py-0.5 border border-[#99f6e4]">
+              Phase 9
+            </Badge>
+          </div>
+          <h1 className="text-xl font-bold text-white mb-2">Drafting Research Paper</h1>
+          <p className="text-xs text-[#888]">
+            Multi-Agent LangGraph system. Agents will concurrently draft sections of your paper based on the entire project context.
+          </p>
+        </div>
 
-              {/* Hero Stats */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {[
-                  { label: "Current Target", value: "J. of Educ. Tech", icon: Target, color: "text-teal-400" },
-                  { label: "Submission Status", value: "Major Revision", icon: Clock, color: "text-amber-400" },
-                  { label: "Open Comments", value: "3", icon: MessageCircle, color: "text-rose-400" },
-                  { label: "Revision Progress", value: "65%", icon: FileText, color: "text-emerald-400" },
-                ].map((stat, i) => (
-                  <div key={i} className="bg-[#1a1a1a] border border-[#333] rounded-2xl p-5">
-                    <div className="flex items-center gap-2 mb-2">
-                      <stat.icon size={16} className={stat.color} />
-                      <span className="text-xs text-[#888] uppercase tracking-wider font-semibold">{stat.label}</span>
-                    </div>
-                    <span className="text-xl font-bold text-white">{stat.value}</span>
+        <div className="p-6 flex-1 overflow-y-auto">
+          {!draftResult && !isDrafting && (
+             <div className="bg-[#111] border border-[#222] rounded-xl p-5 text-center">
+               <Bot size={32} className="mx-auto text-teal-500 mb-3" />
+               <h3 className="text-white font-semibold mb-2">Ready to Draft</h3>
+               <p className="text-xs text-[#666] mb-4">Click below to initialize the AI Team. They will work concurrently to produce your IEEE formatted draft.</p>
+               <Button onClick={startDrafting} className="w-full bg-teal-600 hover:bg-teal-700 text-white gap-2">
+                 <Play size={16} /> Start AI Team
+               </Button>
+             </div>
+          )}
+
+          {(isDrafting || logs.length > 0) && (
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                <Loader2 className={`w-4 h-4 ${isDrafting ? 'animate-spin text-teal-500' : 'text-green-500'}`} />
+                Agent Operations Status
+              </h3>
+              
+              <div className="space-y-2">
+                {logs.map((log, i) => (
+                  <div key={i} className="bg-[#111] border border-[#222] rounded-lg p-3 flex items-center justify-between">
+                    <span className="text-xs font-medium text-[#ccc]">{log.agent}</span>
+                    {log.status === "Complete" ? (
+                      <CheckCircle2 className="w-4 h-4 text-green-500" />
+                    ) : log.status === "Failed" ? (
+                      <span className="text-[10px] text-red-500">{log.status}</span>
+                    ) : (
+                      <span className="text-[10px] text-teal-500 animate-pulse">{log.status}</span>
+                    )}
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+        </div>
+      </div>
 
-              {/* Feature Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {[
-                  { id: "recommender", label: "1. Journal Recommender", icon: Send, color: "text-teal-400", border: "hover:border-teal-500/50", desc: "Find the best journals based on your abstract, keywords, and constraints." },
-                  { id: "exporter", label: "2. Auto Format Exporter", icon: FileCheck, color: "text-blue-400", border: "hover:border-blue-500/50", desc: "Export your manuscript formatted exactly to your target journal's guidelines." },
-                  { id: "tracker", label: "3. Submission Tracker", icon: Kanban, color: "text-purple-400", border: "hover:border-purple-500/50", desc: "Track manuscript statuses across different journals in a centralized board." },
-                  { id: "reviews", label: "4. Peer Review Manager", icon: MessageSquare, color: "text-rose-400", border: "hover:border-rose-500/50", desc: "Import, categorize, and assign reviewer comments for your team to address." },
-                  { id: "revision", label: "5. Revision Assistant", icon: PenTool, color: "text-emerald-400", border: "hover:border-emerald-500/50", desc: "Generate point-by-point response letters using AI and project context." },
-                ].map((card) => (
-                  <div
-                    key={card.id}
-                    onClick={() => setActiveTab(card.id as Tab)}
-                    className={`bg-gradient-to-br from-[#1a1a1a] to-[#0d0d0d] border border-[#333] ${card.border} rounded-2xl p-6 cursor-pointer group transition-all`}
-                  >
-                    <card.icon size={28} className={`${card.color} mb-4 group-hover:scale-110 transition-transform`} />
-                    <h3 className="text-white font-semibold text-lg mb-2">{card.label}</h3>
-                    <p className="text-sm text-[#888] leading-relaxed">{card.desc}</p>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          )}
-
-          {activeTab === "recommender" && (
-            <motion.div key="recommender" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <JournalRecommender projectId={projectId} />
-            </motion.div>
-          )}
-          {activeTab === "exporter" && (
-            <motion.div key="exporter" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <AutoFormatExporter projectId={projectId} />
-            </motion.div>
-          )}
-          {activeTab === "tracker" && (
-            <motion.div key="tracker" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <SubmissionTracker projectId={projectId} />
-            </motion.div>
-          )}
-          {activeTab === "reviews" && (
-            <motion.div key="reviews" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <PeerReviewManager projectId={projectId} />
-            </motion.div>
-          )}
-          {activeTab === "revision" && (
-            <motion.div key="revision" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <RevisionAssistant projectId={projectId} />
-            </motion.div>
-          )}
-        </AnimatePresence>
+      {/* Right Panel: Collaborative Editor */}
+      <div className="hidden lg:block lg:w-[65%] h-full relative bg-[#e5e7eb]">
+        <CollaborationEditor projectId={projectId} initialDraft={draftResult || undefined} />
       </div>
     </div>
   );

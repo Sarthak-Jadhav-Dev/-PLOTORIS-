@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
+export const dynamic = "force-dynamic";
+
 // GET: fetch saved kanban board for project
 export async function GET(req: Request) {
   try {
@@ -13,6 +15,7 @@ export async function GET(req: Request) {
       .select("content")
       .eq("metadata->>project_id", project_id)
       .eq("metadata->>type", "dataset_kanban")
+      .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
 

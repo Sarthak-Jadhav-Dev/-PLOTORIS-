@@ -553,7 +553,7 @@ export default function HomePage() {
                 href="/chat"
                 className="btn-secondary px-10! py-4! text-base! rounded-xl!"
               >
-                Try the AI Chat
+                <span className="text-orange-primary">Try Plotoris Chat</span>
               </Link>
             </div>
 

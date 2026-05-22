@@ -24,7 +24,8 @@ import {
     FileEdit,
     Send,
     PieChart,
-    Lock
+    Lock,
+    Globe
 } from "lucide-react";
 import Link from "next/link";
 
@@ -37,32 +38,11 @@ interface ChatSidebarProps {
     onGoHome?: () => void;
     onGoDashboard?: () => void;
     activeProject?: { id: string; name: string } | null;
+    onOpenProject?: (id: string, name: string) => void;
+    projectsRefreshKey?: number;
 }
 
-const chatHistory = [
-    {
-        category: "Today",
-        chats: [
-            { id: "1", title: "Quantum Computing Research Analysis" },
-            { id: "2", title: "Literature Review on Gene Therapy" },
-        ],
-    },
-    {
-        category: "Yesterday",
-        chats: [
-            { id: "3", title: "Statistical Methods Comparison" },
-            { id: "4", title: "Neural Network Architecture Survey" },
-        ],
-    },
-    {
-        category: "Previous 7 Days",
-        chats: [
-            { id: "5", title: "Climate Change Data Patterns" },
-            { id: "6", title: "Machine Learning in Healthcare" },
-            { id: "7", title: "Blockchain Consensus Mechanisms" },
-        ],
-    },
-];
+
 
 const RESEARCH_PHASES = [
     { id: "p1", title: "Identification of Problem", icon: FileText },
@@ -70,7 +50,6 @@ const RESEARCH_PHASES = [
     { id: "p3", title: "Formulating Hypothesis", icon: Lightbulb },
     { id: "p4", title: "Research Design", icon: PenTool },
     { id: "p-tools", title: "Phase 5: Research Tools", icon: Search, color: "text-blue-400", bgColor: "bg-blue-500/10", borderColor: "border-blue-500/30" },
-    { id: "p-helper", title: "Phase 6: Research Helper Tool", icon: PieChart, color: "text-fuchsia-400", bgColor: "bg-fuchsia-500/10", borderColor: "border-fuchsia-500/30" },
     { id: "p5", title: "Phase 7: Data Collection & Analysis", icon: Database },
     { id: "p6", title: "Phase 8: Interpretation of Results", icon: BarChart2 },
     { id: "p7", title: "Phase 9: Drafting Research Papers", icon: FileEdit },
@@ -86,6 +65,8 @@ export default function ChatSidebar({
     onGoHome,
     onGoDashboard,
     activeProject,
+    onOpenProject,
+    projectsRefreshKey,
 }: ChatSidebarProps) {
     const [hoveredChat, setHoveredChat] = useState<string | null>(null);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -93,6 +74,27 @@ export default function ChatSidebar({
     const [userInitials, setUserInitials] = useState("JD");
     const [userEmail, setUserEmail] = useState("");
     const [allowedPhases, setAllowedPhases] = useState<string[] | "ALL">("ALL");
+    const [searchQuery, setSearchQuery] = useState("");
+    const [projects, setProjects] = useState<any[]>([]);
+    const [isLoadingProjects, setIsLoadingProjects] = useState(false);
+
+    // Fetch projects for the sidebar
+    useEffect(() => {
+        if (!activeProject && userEmail) {
+            setIsLoadingProjects(true);
+            fetch("/api/projects", {
+                headers: { "Authorization": `Bearer ${localStorage.getItem("token")}` }
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.data) {
+                        setProjects(data.data.sort((a: any, b: any) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
+                    }
+                })
+                .catch(console.error)
+                .finally(() => setIsLoadingProjects(false));
+        }
+    }, [activeProject, userEmail, projectsRefreshKey]);
 
     // Extract user info from token
     useEffect(() => {
@@ -188,15 +190,13 @@ export default function ChatSidebar({
                             </button>
                         )}
                         <div className="flex items-center gap-2">
-                            {!activeProject && (
-                                <button
-                                    onClick={onNewChat}
-                                    className="flex-1 flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-[#222] bg-[#141414] hover:border-orange-primary/30 hover:bg-[#1a1a1a] transition-all duration-300 group text-white"
-                                >
-                                    <Plus size={16} className="text-orange-primary" />
-                                    <span className="text-sm font-medium">New Chat</span>
-                                </button>
-                            )}
+                            <Link
+                                href="/"
+                                className="flex-1 flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-[#222] bg-[#141414] hover:border-orange-primary/30 hover:bg-[#1a1a1a] transition-all duration-300 group text-white"
+                            >
+                                <Globe size={16} className="text-orange-primary" />
+                                <span className="text-sm font-medium">Plotoris.com</span>
+                            </Link>
                             <button
                                 onClick={onToggle}
                                 className="p-2 rounded-lg hover:bg-[#1a1a1a] transition-colors lg:hidden text-white"
@@ -212,7 +212,9 @@ export default function ChatSidebar({
                             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#555]" />
                             <input
                                 type="text"
-                                placeholder={activeProject ? "Search project..." : "Search chats..."}
+                                placeholder={activeProject ? "Search phases..." : "Search projects..."}
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
                                 className="w-full pl-9 pr-3 py-2.5 rounded-lg bg-[#141414] border border-[#222] text-sm text-white placeholder:text-[#555] focus:outline-none focus:border-orange-primary/30 transition-all duration-300"
                             />
                         </div>
@@ -225,10 +227,10 @@ export default function ChatSidebar({
                                 <p className="text-xs text-[#555] font-semibold uppercase tracking-wider px-3 py-2 mt-2">
                                     Research Methodology
                                 </p>
-                                {RESEARCH_PHASES.map((phase) => {
+                                {RESEARCH_PHASES.filter(p => p.title.toLowerCase().includes(searchQuery.toLowerCase())).map((phase) => {
                                     const Icon = phase.icon;
                                     const isLocked = allowedPhases !== "ALL" && !allowedPhases.includes(phase.id);
-                                    
+
                                     return (
                                         <button
                                             key={phase.id}
@@ -257,40 +259,40 @@ export default function ChatSidebar({
                                 })}
                             </div>
                         ) : (
-                            chatHistory.map((group) => (
-                                <div key={group.category} className="mb-4">
-                                    <p className="text-xs text-[#555] font-semibold uppercase tracking-wider px-3 py-2 mt-2">
-                                        {group.category}
-                                    </p>
-                                    {group.chats.map((chat) => (
-                                        <div
-                                            key={chat.id}
-                                            onClick={() => onSelectChat(chat.id)}
-                                            onMouseEnter={() => setHoveredChat(chat.id)}
-                                            onMouseLeave={() => setHoveredChat(null)}
-                                            className={`w-full text-left px-3 py-3 rounded-xl mb-1 flex items-center gap-3 group transition-all duration-200 cursor-pointer ${activeChat === chat.id
-                                                    ? "bg-[#1a1a1a] border border-orange-primary/20 text-white"
-                                                    : "hover:bg-[#141414] text-[#888] hover:text-white"
-                                                }`}
-                                            role="button"
-                                            tabIndex={0}
-                                        >
-                                            <MessageSquare size={15} className={activeChat === chat.id ? "text-orange-primary" : "text-[#555]"} />
-                                            <span className="text-sm truncate flex-1">{chat.title}</span>
-                                            {hoveredChat === chat.id && (
-                                                <div className="flex items-center gap-1">
-                                                    <button className="p-1 rounded hover:bg-[#222] transition-colors" onClick={(e) => e.stopPropagation()}>
-                                                        <Edit3 size={12} className="text-[#555]" />
-                                                    </button>
-                                                    <button className="p-1 rounded hover:bg-[#222] transition-colors" onClick={(e) => e.stopPropagation()}>
-                                                        <Trash2 size={12} className="text-[#555] hover:text-red-400" />
-                                                    </button>
+                            <div className="mb-4">
+                                <p className="text-xs text-[#555] font-semibold uppercase tracking-wider px-3 py-2 mt-2">
+                                    Recent Projects
+                                </p>
+                                {isLoadingProjects ? (
+                                    <div className="flex justify-center py-4">
+                                        <div className="w-5 h-5 border-2 border-[#333] border-t-orange-primary rounded-full animate-spin" />
+                                    </div>
+                                ) : projects.length === 0 ? (
+                                    <div className="text-center py-4 text-[#555] text-sm px-4">No projects found. Create one to get started!</div>
+                                ) : (
+                                    projects
+                                        .filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
+                                        .map((project) => (
+                                            <div
+                                                key={project.id}
+                                                onClick={() => onOpenProject?.(project.id, project.name)}
+                                                onMouseEnter={() => setHoveredChat(project.id)}
+                                                onMouseLeave={() => setHoveredChat(null)}
+                                                className="w-full text-left px-3 py-3 rounded-xl mb-1 flex items-center gap-3 group transition-all duration-200 cursor-pointer hover:bg-[#141414] text-[#888] hover:text-white"
+                                                role="button"
+                                                tabIndex={0}
+                                            >
+                                                <div className="w-8 h-8 rounded bg-[#1a1a1a] flex items-center justify-center shrink-0 border border-[#222] group-hover:border-orange-primary/30 transition-colors">
+                                                    <Database size={14} className="text-[#555] group-hover:text-orange-400 transition-colors" />
                                                 </div>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            ))
+                                                <div className="flex-1 min-w-0">
+                                                    <span className="text-sm font-medium truncate block text-white">{project.name}</span>
+                                                    <span className="text-[10px] text-[#666] truncate block mt-0.5">{project.category || "Research Project"}</span>
+                                                </div>
+                                            </div>
+                                        ))
+                                )}
+                            </div>
                         )}
                     </div>
 
@@ -306,17 +308,7 @@ export default function ChatSidebar({
                                     className="absolute bottom-full left-4 right-4 mb-2 bg-surface-raised border border-border shadow-2xl rounded-xl overflow-hidden z-50 p-1"
                                 >
                                     <div className="flex flex-col">
-                                        <Link href="/settings/account" className="flex items-center gap-3 px-3 py-2.5 text-sm text-text-primary hover:bg-surface-overlay rounded-lg transition-colors w-full text-left">
-                                            <UserCircle size={16} className="text-text-muted" /> Account
-                                        </Link>
-                                        <Link href="/settings/preferences" className="flex items-center gap-3 px-3 py-2.5 text-sm text-text-primary hover:bg-surface-overlay rounded-lg transition-colors w-full text-left">
-                                            <Sliders size={16} className="text-text-muted" /> Preferences
-                                        </Link>
-                                        <Link href="/settings/api-keys" className="flex items-center gap-3 px-3 py-2.5 text-sm text-text-primary hover:bg-surface-overlay rounded-lg transition-colors w-full text-left">
-                                            <Key size={16} className="text-text-muted" /> API Keys
-                                        </Link>
-                                        <div className="h-px bg-border my-1" />
-                                        <button 
+                                        <button
                                             onClick={() => {
                                                 localStorage.removeItem("token");
                                                 window.location.href = "/login";
@@ -330,7 +322,7 @@ export default function ChatSidebar({
                             )}
                         </AnimatePresence>
 
-                        <div 
+                        <div
                             onClick={() => setIsMenuOpen(!isMenuOpen)}
                             className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-colors cursor-pointer group ${isMenuOpen ? "bg-[#1a1a1a]" : "hover:bg-[#141414]"}`}
                         >

@@ -115,13 +115,15 @@ export function CollaborationEditor({ projectId, initialDraft, isExpanded, onTog
         .collaboration-cursor__caret { border-left: 2px solid #0d0d0d; border-right: 2px solid #0d0d0d; margin-left: -2px; margin-right: -2px; pointer-events: none; position: relative; word-break: normal; }
         .collaboration-cursor__label { border-radius: 3px 3px 3px 0; color: #0d0d0d; font-size: 12px; font-style: normal; font-weight: 600; left: -2px; line-height: normal; padding: 2px 4px; position: absolute; top: -1.5em; user-select: none; white-space: nowrap; }
         
-        /* IEEE Two Column Layout for Prose */
+        /* Simulated Multiple Pages Layout */
         .ieee-format {
           font-family: "Times New Roman", Times, serif;
-        }
-        .ieee-format > * {
+          line-height: 1.5;
+          padding: 2.5cm;
+          min-height: 29.7cm;
+          height: max-content;
           column-count: 2;
-          column-gap: 2rem;
+          column-gap: 1.5cm;
           column-rule: 1px solid #e5e7eb;
         }
         .ieee-format h1 {
@@ -129,20 +131,32 @@ export function CollaborationEditor({ projectId, initialDraft, isExpanded, onTog
           text-align: center;
           font-size: 24pt;
           margin-bottom: 24pt;
+          font-weight: bold;
         }
         .ieee-format h2 {
           font-size: 14pt;
           text-transform: uppercase;
-          margin-top: 12pt;
+          margin-top: 18pt;
           margin-bottom: 6pt;
-          break-after: avoid;
+          font-weight: bold;
+          text-align: center;
         }
         .ieee-format p {
           font-size: 10pt;
           text-align: justify;
           text-indent: 14pt;
-          margin-bottom: 0;
-          line-height: 1.15;
+          margin-bottom: 10pt;
+        }
+        /* A4 Page pattern background */
+        .paper-background {
+          background-color: #fff;
+          background-image: linear-gradient(to bottom, transparent calc(29.7cm - 2px), #d1d5db calc(29.7cm - 2px), #d1d5db 29.7cm);
+          background-size: 100% 29.7cm;
+          box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+          width: 100%;
+          max-width: 21cm;
+          min-height: 29.7cm;
+          height: max-content;
         }
       `}</style>
       
@@ -246,12 +260,12 @@ export function CollaborationEditor({ projectId, initialDraft, isExpanded, onTog
       </div>
       
       {/* Editor Page Wrapper */}
-      <div className="flex-1 overflow-y-auto p-4 md:p-8 flex justify-center bg-[#f0f0f0]">
+      <div className="flex-1 overflow-y-auto py-8 flex justify-center bg-[#f0f0f0]">
         {/* The Paper */}
-        <div className="bg-white shadow-md w-full max-w-[21cm] min-h-[29.7cm] p-10 md:p-12 border border-gray-200">
+        <div className="paper-background border border-gray-300">
           <EditorContent 
             editor={editor} 
-            className="ieee-format w-full h-full min-h-[800px] outline-none focus:outline-none" 
+            className="ieee-format w-full outline-none focus:outline-none" 
           />
         </div>
       </div>

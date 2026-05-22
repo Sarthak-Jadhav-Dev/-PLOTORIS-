@@ -12,11 +12,13 @@ export default function PhaseNineView({ projectId }: { projectId: string }) {
   const [isDrafting, setIsDrafting] = useState(false);
   const [draftResult, setDraftResult] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [progress, setProgress] = useState(0);
   
   const [logs, setLogs] = useState<{agent: string, status: string}[]>([]);
 
   const startDrafting = async () => {
     setIsDrafting(true);
+    setProgress(0);
     setLogs([
       { agent: "Context Compiler", status: "Fetching Phase 3 & 7 Data..." },
       { agent: "Abstract Agent", status: "Starting..." },
@@ -32,20 +34,40 @@ export default function PhaseNineView({ projectId }: { projectId: string }) {
       setLogs(prev => prev.map(l => l.agent.includes("Compiler") ? { ...l, status: "Complete" } : { ...l, status: "Drafting in progress..." }));
     }, 2000);
 
+    const progressInterval = setInterval(() => {
+      setProgress(prev => {
+        if (prev >= 95) return 95;
+        return prev + Math.floor(Math.random() * 5) + 2;
+      });
+    }, 1000);
+
     try {
+      const activeTextProvider = localStorage.getItem(`plotoris_active_text_provider_${projectId}`) || "gemini";
+      const textKey = localStorage.getItem(`plotoris_${activeTextProvider}_key_${projectId}`) || "";
+      const headers: any = { "Content-Type": "application/json" };
+      
+      if (textKey) {
+        headers["x-api-key"] = textKey;
+        headers["x-api-provider"] = activeTextProvider;
+      }
+
       const res = await fetch("/api/phase9/draft", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ projectId }),
       });
       const data = await res.json();
       
+      if (!res.ok) throw new Error(data.error || "Drafting failed");
+
+      setProgress(100);
       setLogs(prev => prev.map(l => ({ ...l, status: "Complete" })));
       setDraftResult(data.draft);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      setLogs(prev => prev.map(l => ({ ...l, status: "Failed" })));
+      setLogs(prev => prev.map(l => ({ ...l, status: "Failed: " + e.message })));
     } finally {
+      clearInterval(progressInterval);
       setIsDrafting(false);
     }
   };
@@ -84,10 +106,24 @@ export default function PhaseNineView({ projectId }: { projectId: string }) {
 
             {(isDrafting || logs.length > 0) && (
               <div className="space-y-4">
-                <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-                  <Loader2 className={`w-4 h-4 ${isDrafting ? 'animate-spin text-teal-500' : 'text-green-500'}`} />
-                  Agent Operations Status
+                <h3 className="text-sm font-semibold text-white mb-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className={`w-4 h-4 ${isDrafting ? 'animate-spin text-teal-500' : 'text-green-500'}`} />
+                    Agent Operations Status
+                  </div>
+                  {(isDrafting || progress > 0) && (
+                    <span className="text-teal-400">{progress}%</span>
+                  )}
                 </h3>
+                
+                {(isDrafting || progress > 0) && (
+                  <div className="w-full bg-[#222] rounded-full h-2 mb-4 overflow-hidden">
+                    <div 
+                      className={`h-2 rounded-full transition-all duration-500 ease-out ${progress === 100 ? 'bg-green-500' : 'bg-teal-500'}`} 
+                      style={{ width: `${progress}%` }} 
+                    />
+                  </div>
+                )}
                 
                 <div className="space-y-2">
                   {logs.map((log, i) => (

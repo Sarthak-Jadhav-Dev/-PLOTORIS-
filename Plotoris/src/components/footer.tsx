@@ -10,7 +10,7 @@ const footerLinks = {
         { label: "Documentation", href: "#" },
     ],
     Company: [
-        { label: "About", href: "#about" },
+        { label: "About", href: "/about" },
         { label: "Blog", href: "#" },
         { label: "Careers", href: "#" },
         { label: "Contact", href: "#" },
@@ -41,7 +41,7 @@ export default function Footer() {
                     <div className="lg:col-span-2">
                         <Link href="/" className="flex items-center gap-3 mb-4">
                             <Image src="/plotoris.png" alt="Plotoris Logo" width={36} height={36} className="w-9 h-9 object-contain" />
-                            <span className="text-lg font-bold">
+                            <span className="text-lg text-white font-bold">
                                 Ploto<span className="text-gradient">ris</span>
                             </span>
                         </Link>

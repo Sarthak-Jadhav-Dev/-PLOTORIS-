@@ -14,7 +14,6 @@ interface ClaimsChatProps {
 }
 
 export function ClaimsChat({ projectId }: ClaimsChatProps) {
-  const bottomRef = useRef<HTMLDivElement>(null);
   const [initialMessages, setInitialMessages] = useState<Message[]>([]);
   const [isInitializing, setIsInitializing] = useState(true);
 
@@ -23,7 +22,9 @@ export function ClaimsChat({ projectId }: ClaimsChatProps) {
       try {
         const res = await fetch(`/api/phase7/chat-history?project_id=${projectId}`);
         const data = await res.json();
-        if (data.messages) setInitialMessages(data.messages);
+        if (data.messages && data.messages.length > 0) {
+          setInitialMessages(data.messages);
+        }
       } catch (err) {
         console.error("Failed to load chat history", err);
       } finally {
@@ -33,6 +34,20 @@ export function ClaimsChat({ projectId }: ClaimsChatProps) {
     fetchHistory();
   }, [projectId]);
 
+  if (isInitializing) {
+    return (
+      <div className="flex items-center justify-center h-full bg-[#0a0a0a]">
+        <Loader2 size={24} className="animate-spin text-[#444]" />
+      </div>
+    );
+  }
+
+  return <ClaimsChatInner projectId={projectId} initialMessages={initialMessages} />;
+}
+
+function ClaimsChatInner({ projectId, initialMessages }: { projectId: string; initialMessages: Message[] }) {
+  const bottomRef = useRef<HTMLDivElement>(null);
+  
   const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
     api: "/api/phase7/chat",
     body: { projectId },
@@ -59,7 +74,6 @@ export function ClaimsChat({ projectId }: ClaimsChatProps) {
       console.error("Chat error:", error);
     }
   });
-
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -135,14 +149,6 @@ export function ClaimsChat({ projectId }: ClaimsChatProps) {
       </>
     );
   };
-
-  if (isInitializing) {
-    return (
-      <div className="flex items-center justify-center h-full bg-[#0a0a0a]">
-        <Loader2 size={24} className="animate-spin text-[#444]" />
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col w-full h-full min-h-0 bg-[#0a0a0a] border-r border-[#1a1a1a]">

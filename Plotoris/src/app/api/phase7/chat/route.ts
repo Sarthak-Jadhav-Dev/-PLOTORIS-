@@ -96,10 +96,12 @@ export async function POST(request: Request) {
           if (claimMatch) {
             try {
               const claimData = JSON.parse(claimMatch[1].trim());
-              await supabase.from("Documents").insert({
-                content: JSON.stringify(claimData),
-                embedding: new Array(768).fill(0),
-                metadata: { project_id: projectId, type: "verified_claim" }
+              await supabase.from("research_claims").insert({
+                project_id: projectId,
+                claim_text: claimData.claim_text,
+                ai_verdict: claimData.ai_verdict,
+                confidence_score: claimData.confidence_score,
+                evidence_summary: claimData.evidence_summary
               });
             } catch (e) {
               console.error("Claim parse error:", e);

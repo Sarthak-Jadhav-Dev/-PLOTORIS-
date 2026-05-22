@@ -28,7 +28,7 @@ export default function PhaseOneView({ projectId, onProceedToPhase2 }: PhaseOneV
   const [currentStep, setCurrentStep] = useState(0);
   const [isFinalizing, setIsFinalizing] = useState(false);
   const [finalResult, setFinalResult] = useState<any>(null);
-  
+
   // Fast-Track State
   const [isBypassMode, setIsBypassMode] = useState(false);
   const [customIdea, setCustomIdea] = useState("");
@@ -39,7 +39,7 @@ export default function PhaseOneView({ projectId, onProceedToPhase2 }: PhaseOneV
   const [questionData, setQuestionData] = useState<any>(null);
   const [scope, setScope] = useState<any>(null);
   const [objectives, setObjectives] = useState<any>(null);
-  
+
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [isEditingData, setIsEditingData] = useState(false);
   const [editForm, setEditForm] = useState({
@@ -66,7 +66,7 @@ export default function PhaseOneView({ projectId, onProceedToPhase2 }: PhaseOneV
           setObjectives(data.data.objectives);
           setFinalResult({
             ai_summary: data.data.summary,
-            knowledge_graph_nodes: [] 
+            knowledge_graph_nodes: []
           });
           setCurrentStep(4);
         }
@@ -164,7 +164,7 @@ export default function PhaseOneView({ projectId, onProceedToPhase2 }: PhaseOneV
       question: questionData?.version || questionData?.question || questionData || "",
       inclusions: (scope?.inclusions || []).map((i: any) => i.item || i).join("\n"),
       exclusions: (scope?.exclusions || []).map((i: any) => i.item || i).join("\n"),
-      objectives: Array.isArray(objectives) 
+      objectives: Array.isArray(objectives)
         ? objectives.map((o: any) => o.objective || o.smart_objective || o).join("\n\n")
         : (objectives?.smart_objective || objectives?.objective || (typeof objectives === "string" ? objectives : ""))
     });
@@ -236,22 +236,20 @@ export default function PhaseOneView({ projectId, onProceedToPhase2 }: PhaseOneV
           <div className="flex items-center justify-between relative">
             {/* Connecting line */}
             <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-0.5 bg-[#222] -z-10" />
-            
+
             {STEPS.map((step, idx) => {
               const isActive = idx === currentStep;
               const isPast = idx < currentStep;
               return (
                 <div key={idx} className="flex flex-col items-center gap-2 bg-[#0a0a0a] px-2">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-colors ${
-                    isActive ? "border-orange-500 bg-orange-500/20 text-orange-400" :
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-colors ${isActive ? "border-orange-500 bg-orange-500/20 text-orange-400" :
                     isPast ? "border-green-500 bg-green-500 text-black" :
-                    "border-[#333] bg-[#1a1a1a] text-[#666]"
-                  }`}>
+                      "border-[#333] bg-[#1a1a1a] text-[#666]"
+                    }`}>
                     {isPast ? <Check size={14} /> : <span className="text-xs font-bold">{idx + 1}</span>}
                   </div>
-                  <span className={`text-[10px] uppercase tracking-wider font-semibold hidden md:block ${
-                    isActive ? "text-orange-400" : isPast ? "text-green-500" : "text-[#555]"
-                  }`}>
+                  <span className={`text-[10px] uppercase tracking-wider font-semibold hidden md:block ${isActive ? "text-orange-400" : isPast ? "text-green-500" : "text-[#555]"
+                    }`}>
                     {step}
                   </span>
                 </div>
@@ -284,7 +282,7 @@ export default function PhaseOneView({ projectId, onProceedToPhase2 }: PhaseOneV
       {/* Main Content Area */}
       <div className="flex-1 p-6 lg:p-10">
         <AnimatePresence mode="wait">
-          
+
           {isBypassMode && currentStep < 4 && (
             <motion.div key="bypass-mode" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="max-w-3xl mx-auto w-full">
               <div className="bg-[#1a1a1a] border border-[#333] p-8 rounded-2xl shadow-xl">
@@ -292,15 +290,15 @@ export default function PhaseOneView({ projectId, onProceedToPhase2 }: PhaseOneV
                 <p className="text-[#888] mb-6 leading-relaxed">
                   Already have a clear research topic, problem statement, or instructions? Paste it below. The AI will parse your input, structure it into the Phase 1 format, and seed your project's knowledge graph automatically.
                 </p>
-                <Textarea 
+                <Textarea
                   placeholder="Paste your abstract, assignment instructions, or raw research idea here..."
                   className="bg-[#0d0d0d] border-[#333] text-white min-h-[250px] mb-6 focus:border-orange-500/50 p-4"
                   value={customIdea}
                   onChange={(e) => setCustomIdea(e.target.value)}
                 />
                 <div className="flex justify-end">
-                  <Button 
-                    onClick={handleBypassSubmit} 
+                  <Button
+                    onClick={handleBypassSubmit}
                     disabled={!customIdea.trim() || isSubmittingBypass}
                     className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-6 rounded-xl"
                   >
@@ -320,32 +318,32 @@ export default function PhaseOneView({ projectId, onProceedToPhase2 }: PhaseOneV
 
           {!isBypassMode && currentStep === 1 && (
             <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-              <QuestionValidator 
+              <QuestionValidator
                 projectId={projectId}
-                problemContext={problem} 
-                onQuestionValidated={(q) => { setQuestionData(q); setCurrentStep(2); }} 
+                problemContext={problem}
+                onQuestionValidated={(q) => { setQuestionData(q); setCurrentStep(2); }}
               />
             </motion.div>
           )}
 
           {!isBypassMode && currentStep === 2 && (
             <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-              <ScopeBuilder 
+              <ScopeBuilder
                 projectId={projectId}
                 problemContext={problem}
                 questionContext={questionData}
-                onScopeFinalized={(s) => { setScope(s); setCurrentStep(3); }} 
+                onScopeFinalized={(s) => { setScope(s); setCurrentStep(3); }}
               />
             </motion.div>
           )}
 
           {!isBypassMode && currentStep === 3 && (
             <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-              <SmartBuilder 
+              <SmartBuilder
                 projectId={projectId}
                 problemContext={problem}
                 questionContext={questionData}
-                onObjectivesFinalized={handleFinalize} 
+                onObjectivesFinalized={handleFinalize}
               />
             </motion.div>
           )}
@@ -368,7 +366,7 @@ export default function PhaseOneView({ projectId, onProceedToPhase2 }: PhaseOneV
               <p className="text-lg text-[#a0aec0] mb-8 leading-relaxed max-w-2xl mx-auto">
                 {finalResult.ai_summary}
               </p>
-              
+
               <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl p-6 md:p-8 flex flex-col gap-6 text-left mb-8 w-full shadow-xl">
                 <div className="flex items-center justify-between border-b border-[#333] pb-3">
                   <h3 className="text-white font-semibold text-xl flex items-center gap-2">
@@ -390,12 +388,12 @@ export default function PhaseOneView({ projectId, onProceedToPhase2 }: PhaseOneV
                     </div>
                   )}
                 </div>
-                
+
                 {problem && (
                   <div>
                     <h4 className="text-orange-400 font-medium mb-2 text-sm uppercase tracking-wider">Problem Statement</h4>
                     {isEditingData ? (
-                      <Textarea value={editForm.problem} onChange={e => setEditForm({...editForm, problem: e.target.value})} className="bg-[#0d0d0d] border-[#333] text-white min-h-[100px]" />
+                      <Textarea value={editForm.problem} onChange={e => setEditForm({ ...editForm, problem: e.target.value })} className="bg-[#0d0d0d] border-[#333] text-white min-h-[100px]" />
                     ) : (
                       <p className="text-[#d4d4d4] text-sm leading-relaxed bg-[#0d0d0d] p-4 rounded-xl border border-[#222]">
                         {problem.statement || problem}
@@ -403,12 +401,12 @@ export default function PhaseOneView({ projectId, onProceedToPhase2 }: PhaseOneV
                     )}
                   </div>
                 )}
-                
+
                 {questionData && (
                   <div>
                     <h4 className="text-blue-400 font-medium mb-2 text-sm uppercase tracking-wider">Research Question</h4>
                     {isEditingData ? (
-                      <Textarea value={editForm.question} onChange={e => setEditForm({...editForm, question: e.target.value})} className="bg-[#0d0d0d] border-[#333] text-white" />
+                      <Textarea value={editForm.question} onChange={e => setEditForm({ ...editForm, question: e.target.value })} className="bg-[#0d0d0d] border-[#333] text-white" />
                     ) : (
                       <p className="text-[#d4d4d4] text-sm leading-relaxed bg-[#0d0d0d] p-4 rounded-xl border border-[#222]">
                         {questionData.version || questionData.question || questionData}
@@ -416,7 +414,7 @@ export default function PhaseOneView({ projectId, onProceedToPhase2 }: PhaseOneV
                     )}
                   </div>
                 )}
-                
+
                 {scope && (
                   <div>
                     <h4 className="text-purple-400 font-medium mb-2 text-sm uppercase tracking-wider">Scope Boundaries</h4>
@@ -424,7 +422,7 @@ export default function PhaseOneView({ projectId, onProceedToPhase2 }: PhaseOneV
                       <div className="bg-[#0d0d0d] p-4 rounded-xl border border-[#222] flex flex-col">
                         <strong className="text-white text-sm block mb-2">Inclusions (one per line)</strong>
                         {isEditingData ? (
-                          <Textarea value={editForm.inclusions} onChange={e => setEditForm({...editForm, inclusions: e.target.value})} className="bg-[#1a1a1a] border-[#333] text-white flex-1 min-h-[100px]" />
+                          <Textarea value={editForm.inclusions} onChange={e => setEditForm({ ...editForm, inclusions: e.target.value })} className="bg-[#1a1a1a] border-[#333] text-white flex-1 min-h-[100px]" />
                         ) : (
                           <ul className="list-disc pl-4 text-sm text-[#a0aec0] space-y-1">
                             {scope.inclusions?.map((inc: any, i: number) => (
@@ -436,7 +434,7 @@ export default function PhaseOneView({ projectId, onProceedToPhase2 }: PhaseOneV
                       <div className="bg-[#0d0d0d] p-4 rounded-xl border border-[#222] flex flex-col">
                         <strong className="text-white text-sm block mb-2">Exclusions (one per line)</strong>
                         {isEditingData ? (
-                          <Textarea value={editForm.exclusions} onChange={e => setEditForm({...editForm, exclusions: e.target.value})} className="bg-[#1a1a1a] border-[#333] text-white flex-1 min-h-[100px]" />
+                          <Textarea value={editForm.exclusions} onChange={e => setEditForm({ ...editForm, exclusions: e.target.value })} className="bg-[#1a1a1a] border-[#333] text-white flex-1 min-h-[100px]" />
                         ) : (
                           <ul className="list-disc pl-4 text-sm text-[#a0aec0] space-y-1">
                             {scope.exclusions?.map((exc: any, i: number) => (
@@ -453,7 +451,7 @@ export default function PhaseOneView({ projectId, onProceedToPhase2 }: PhaseOneV
                   <div>
                     <h4 className="text-emerald-400 font-medium mb-2 text-sm uppercase tracking-wider">SMART Objectives</h4>
                     {isEditingData ? (
-                      <Textarea value={editForm.objectives} onChange={e => setEditForm({...editForm, objectives: e.target.value})} className="bg-[#0d0d0d] border-[#333] text-white min-h-[150px]" placeholder="Separate objectives with a blank line" />
+                      <Textarea value={editForm.objectives} onChange={e => setEditForm({ ...editForm, objectives: e.target.value })} className="bg-[#0d0d0d] border-[#333] text-white min-h-[150px]" placeholder="Separate objectives with a blank line" />
                     ) : (
                       <ul className="space-y-3">
                         {Array.isArray(objectives) ? objectives.map((obj: any, i: number) => (
@@ -475,7 +473,7 @@ export default function PhaseOneView({ projectId, onProceedToPhase2 }: PhaseOneV
 
               {!isEditingData && (
                 <div className="flex justify-center gap-4">
-                  <Button 
+                  <Button
                     onClick={() => {
                       setCurrentStep(0);
                       setFinalResult(null);
@@ -483,9 +481,9 @@ export default function PhaseOneView({ projectId, onProceedToPhase2 }: PhaseOneV
                     variant="outline"
                     className="bg-transparent border-[#333] hover:bg-[#1a1a1a] text-white px-8 py-6 text-lg rounded-xl"
                   >
-                    Start AI Wizard Over
+                    Start AI Wizard Again
                   </Button>
-                  <Button 
+                  <Button
                     onClick={onProceedToPhase2}
                     className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-6 text-lg rounded-xl"
                   >

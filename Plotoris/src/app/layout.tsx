@@ -3,7 +3,8 @@ import "./globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
-
+import { Toaster } from "react-hot-toast";
+import { FetchInterceptor } from "@/components/fetch-interceptor";
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
@@ -29,6 +30,8 @@ export default function RootLayout({
       </head>
       <body className="antialiased" suppressHydrationWarning>
         <TooltipProvider>{children}</TooltipProvider>
+        <Toaster position="bottom-right" />
+        <FetchInterceptor />
       </body>
     </html>
   );

@@ -12,11 +12,12 @@ export function getLLM(req: Request, defaultTemp = 0.2, defaultModel = "gemini-2
   }
 
   if (apiProvider === "groq") {
-    let groqModelName = "llama-3.3-70b-versatile";
+    let groqModelName = "llama-3.1-8b-instant";
     return new ChatGroq({
       apiKey: apiKey,
       model: groqModelName,
       temperature: defaultTemp,
+      maxTokens: 8192,
     });
   }
 
@@ -25,6 +26,7 @@ export function getLLM(req: Request, defaultTemp = 0.2, defaultModel = "gemini-2
       apiKey: apiKey,
       modelName: "gpt-4o",
       temperature: defaultTemp,
+      maxTokens: 8192,
     });
   }
 
@@ -32,6 +34,7 @@ export function getLLM(req: Request, defaultTemp = 0.2, defaultModel = "gemini-2
     apiKey: apiKey,
     model: defaultModel,
     temperature: defaultTemp,
+    maxOutputTokens: 8192,
   });
 }
 

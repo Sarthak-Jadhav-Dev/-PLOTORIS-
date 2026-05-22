@@ -45,22 +45,16 @@ export async function POST(req: Request) {
       let contentStr = aiResponse.content.toString().trim();
       contentStr = contentStr.replace(/```(?:json)?/gi, '').replace(/```/g, '').trim();
       
-      // Fix unescaped newlines inside strings which break JSON.parse
-      contentStr = contentStr.replace(/[\r\n]+/g, ' ');
-      
       const startIndex = contentStr.indexOf('{');
-      let endIndex = contentStr.lastIndexOf('}');
+      const endIndex = contentStr.lastIndexOf('}');
       
       if (startIndex !== -1 && endIndex !== -1 && endIndex >= startIndex) {
         contentStr = contentStr.substring(startIndex, endIndex + 1);
       }
       
-      // Auto-append missing closing braces if LLM truncated the JSON
-      const openBraces = (contentStr.match(/\{/g) || []).length;
-      const closeBraces = (contentStr.match(/\}/g) || []).length;
-      if (openBraces > closeBraces) {
-        contentStr += '}'.repeat(openBraces - closeBraces);
-      }
+      // Fix unescaped newlines inside strings which break JSON.parse
+      contentStr = contentStr.replace(/[\r\n]+/g, ' ');
+
       
       parsedResult = JSON.parse(contentStr);
     } catch (parseErr: any) {

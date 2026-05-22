@@ -8,14 +8,13 @@ export async function POST(req: Request) {
     if (!project_id) {
       return NextResponse.json({ error: "project_id is required" }, { status: 400 });
     }
-    
 
     // Retrieve prior context (hypothesis, design, variables)
     const { data: docs, error: fetchError } = await supabase
       .from("Documents")
       .select("content")
       .eq("metadata->>project_id", project_id)
-      .in("metadata->>type", ["hypothesis", "design_recommendation", "variable_map"]);
+      .in("metadata->>type", ["hypothesis", "design_selection", "variable_map"]);
 
     if (fetchError) {
       throw new Error(`Failed to fetch project context: ${fetchError.message}`);
@@ -50,23 +49,70 @@ Context:\n${contextStr}`;
       return NextResponse.json({ error: "Failed to parse AI response" }, { status: 500 });
     }
 
-    // Store embedding for future RAG
-    const embeddings = getEmbeddings(req);
-    const vector = await embeddings.embedQuery(`Timeline milestones: ${JSON.stringify(parsed)}`);
+    // Return the generated timeline but do NOT save it automatically
+    return NextResponse.json(parsed);
+  } catch (error: any) {
+    console.error(error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
 
-    await supabase.from("Documents").insert({
-      content: JSON.stringify(parsed),
+// GET: fetch the previously saved timeline
+export async function GET(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const project_id = searchParams.get("project_id");
+    if (!project_id) return NextResponse.json({ error: "project_id required" }, { status: 400 });
+
+    const { data, error } = await supabase
+      .from("Documents")
+      .select("content")
+      .eq("metadata->>project_id", project_id)
+      .eq("metadata->>type", "timeline")
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw error;
+    if (!data) return NextResponse.json({ timeline: null });
+
+    return NextResponse.json({ timeline: JSON.parse(data.content) });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+// PUT: save the user's edited timeline
+export async function PUT(req: Request) {
+  try {
+    const body = await req.json();
+    const { project_id, tasks } = body;
+    if (!project_id || !tasks) return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+
+    const embeddings = getEmbeddings(req);
+    const vector = await embeddings.embedQuery(`Project timeline tasks: ${JSON.stringify(tasks)}`);
+
+    // Delete existing timeline
+    await supabase
+      .from("Documents")
+      .delete()
+      .eq("metadata->>project_id", project_id)
+      .eq("metadata->>type", "timeline");
+
+    const { error } = await supabase.from("Documents").insert({
+      content: JSON.stringify({ milestones: tasks }),
       embedding: vector,
       metadata: {
         project_id,
         phase: 4,
         type: "timeline",
-      },
+        created_at: new Date().toISOString()
+      }
     });
 
-    return NextResponse.json(parsed);
+    if (error) throw error;
+    return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error(error);
+    console.error("Save timeline error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

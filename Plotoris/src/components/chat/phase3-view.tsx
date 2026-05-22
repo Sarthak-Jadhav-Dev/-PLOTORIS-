@@ -11,10 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import HypothesisBuilder from "@/components/chat/phase3/hypothesis-builder";
 import VariableMapper from "@/components/chat/phase3/variable-mapper";
 import TestabilityScorer from "@/components/chat/phase3/testability-scorer";
-import ValidationPanel from "@/components/chat/phase3/validation-panel";
 
 export default function PhaseThreeView({ projectId }: { projectId: string }) {
-  const [activeTab, setActiveTab] = useState<"dashboard" | "builder" | "mapper" | "scorer" | "validation" | "voting">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "builder" | "mapper" | "scorer" | "voting">("dashboard");
 
   // State to hold the current hypothesis draft
   const [hypothesisDraft, setHypothesisDraft] = useState<any>(null);
@@ -63,8 +62,7 @@ export default function PhaseThreeView({ projectId }: { projectId: string }) {
               { id: "dashboard", label: "Dashboard" },
               { id: "builder", label: "Builder" },
               { id: "mapper", label: "Mapper" },
-              { id: "scorer", label: "Testability" },
-              { id: "validation", label: "Validation" }
+              { id: "scorer", label: "Testability" }
             ].map((tab) => (
               <Button 
                 key={tab.id}
@@ -88,8 +86,7 @@ export default function PhaseThreeView({ projectId }: { projectId: string }) {
                 {[
                   { label: "Saved Variables", value: savedVariables.length.toString(), icon: Network, color: "text-blue-400" },
                   { label: "Hypotheses Drafted", value: hypothesisDraft ? "1" : "0", icon: Lightbulb, color: "text-amber-400" },
-                  { label: "Testability Score", value: "--/100", icon: CheckCircle, color: "text-emerald-400" },
-                  { label: "Literature Validation", value: "Pending", icon: SearchCode, color: "text-indigo-400" },
+                  { label: "Testability Score", value: "--/100", icon: CheckCircle, color: "text-emerald-400" }
                 ].map((stat, i) => (
                   <div key={i} className="bg-[#1a1a1a] border border-[#333] rounded-2xl p-5 flex flex-col justify-center">
                     <div className="flex items-center gap-2 mb-2">
@@ -120,12 +117,6 @@ export default function PhaseThreeView({ projectId }: { projectId: string }) {
                   <h3 className="text-white font-semibold mb-1">3. Testability Scorer</h3>
                   <p className="text-xs text-[#888]">Score falsifiability, clarity, and novelty.</p>
                 </div>
-
-                <div onClick={() => setActiveTab("validation")} className="bg-gradient-to-br from-[#1a1a1a] to-[#0d0d0d] border border-[#333] hover:border-indigo-500/50 rounded-2xl p-6 cursor-pointer group">
-                  <SearchCode size={24} className="text-indigo-400 mb-4 group-hover:scale-110 transition-transform" />
-                  <h3 className="text-white font-semibold mb-1">4. AI Validation</h3>
-                  <p className="text-xs text-[#888]">Cross-check against literature corpus.</p>
-                </div>
               </div>
 
             </motion.div>
@@ -154,12 +145,6 @@ export default function PhaseThreeView({ projectId }: { projectId: string }) {
           {activeTab === "scorer" && (
             <motion.div key="scorer" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
               <TestabilityScorer projectId={projectId} hypothesis={hypothesisDraft} />
-            </motion.div>
-          )}
-
-          {activeTab === "validation" && (
-            <motion.div key="validation" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <ValidationPanel projectId={projectId} hypothesis={hypothesisDraft} />
             </motion.div>
           )}
 

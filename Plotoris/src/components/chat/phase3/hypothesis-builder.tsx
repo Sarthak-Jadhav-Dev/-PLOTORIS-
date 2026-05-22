@@ -77,9 +77,17 @@ export default function HypothesisBuilder({ projectId, savedVariables, onSavedVa
   const saveVariable = async (v: ExtractedVariable, uniqueId: string) => {
     setSavingIds(prev => new Set(prev).add(uniqueId));
     try {
+      const activeEmbeddingProvider = localStorage.getItem(`plotoris_active_embedding_provider_${projectId}`) || "gemini";
+      const embeddingKey = localStorage.getItem(`plotoris_${activeEmbeddingProvider}_key_${projectId}`) || "";
+      const headers: any = { "Content-Type": "application/json" };
+      if (embeddingKey) {
+        headers["x-embedding-key"] = embeddingKey;
+        headers["x-embedding-provider"] = activeEmbeddingProvider;
+      }
+
       const res = await fetch("/api/phase3/saved-variables", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ project_id: projectId, ...v })
       });
       const data = await res.json();
@@ -100,9 +108,17 @@ export default function HypothesisBuilder({ projectId, savedVariables, onSavedVa
     if (!manualIv || !manualDv) return;
     setIsSavingManual(true);
     try {
+      const activeEmbeddingProvider = localStorage.getItem(`plotoris_active_embedding_provider_${projectId}`) || "gemini";
+      const embeddingKey = localStorage.getItem(`plotoris_${activeEmbeddingProvider}_key_${projectId}`) || "";
+      const headers: any = { "Content-Type": "application/json" };
+      if (embeddingKey) {
+        headers["x-embedding-key"] = embeddingKey;
+        headers["x-embedding-provider"] = activeEmbeddingProvider;
+      }
+
       const res = await fetch("/api/phase3/saved-variables", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ 
           project_id: projectId, 
           iv: manualIv, 

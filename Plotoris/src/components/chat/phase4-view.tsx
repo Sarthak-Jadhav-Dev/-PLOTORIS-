@@ -9,13 +9,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 import DesignRecommender from "@/components/chat/phase4/design-recommender";
-import SampleSizeCalculator from "@/components/chat/phase4/sample-size-calculator";
 import EthicsChecklist from "@/components/chat/phase4/ethics-checklist";
 import TimelineBuilder from "@/components/chat/phase4/timeline-builder";
 import MethodologyBuilder from "@/components/chat/phase4/methodology-builder";
 
 export default function PhaseFourView({ projectId }: { projectId: string }) {
-  const [activeTab, setActiveTab] = useState<"dashboard" | "design" | "sample" | "ethics" | "timeline" | "methodology">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "design" | "ethics" | "timeline" | "methodology">("dashboard");
 
   return (
     <div className="flex-1 overflow-y-auto bg-[#050505] text-[#d4d4d4] p-4 lg:p-8 font-sans relative">
@@ -43,7 +42,6 @@ export default function PhaseFourView({ projectId }: { projectId: string }) {
             {[
               { id: "dashboard", label: "Dashboard" },
               { id: "design", label: "Design Recommender" },
-              { id: "sample", label: "Sample Size" },
               { id: "ethics", label: "Ethics" },
               { id: "timeline", label: "Timeline" },
               { id: "methodology", label: "Methodology" }
@@ -91,12 +89,6 @@ export default function PhaseFourView({ projectId }: { projectId: string }) {
                   <p className="text-xs text-[#888]">AI suggestions based on variables.</p>
                 </div>
                 
-                <div onClick={() => setActiveTab("sample")} className="bg-gradient-to-br from-[#1a1a1a] to-[#0d0d0d] border border-[#333] hover:border-indigo-500/50 rounded-2xl p-6 cursor-pointer group">
-                  <Calculator size={24} className="text-indigo-400 mb-4 group-hover:scale-110 transition-transform" />
-                  <h3 className="text-white font-semibold mb-1">2. Sample Size</h3>
-                  <p className="text-xs text-[#888]">Statistical power calculations.</p>
-                </div>
-
                 <div onClick={() => setActiveTab("ethics")} className="bg-gradient-to-br from-[#1a1a1a] to-[#0d0d0d] border border-[#333] hover:border-emerald-500/50 rounded-2xl p-6 cursor-pointer group">
                   <ShieldCheck size={24} className="text-emerald-400 mb-4 group-hover:scale-110 transition-transform" />
                   <h3 className="text-white font-semibold mb-1">3. Ethics Checklist</h3>
@@ -121,12 +113,6 @@ export default function PhaseFourView({ projectId }: { projectId: string }) {
           {activeTab === "design" && (
             <motion.div key="design" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
               <DesignRecommender projectId={projectId} />
-            </motion.div>
-          )}
-
-          {activeTab === "sample" && (
-            <motion.div key="sample" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <SampleSizeCalculator projectId={projectId} />
             </motion.div>
           )}
 

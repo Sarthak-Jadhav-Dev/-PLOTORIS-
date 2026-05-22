@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
-import { sendOtpEmail } from '@/lib/mailer';
-import { otpStore } from '@/lib/otpStore';
+import { supabase } from '@/lib/supabase';
+import jwt from 'jsonwebtoken';
 
 export async function POST(request: Request) {
   try {
@@ -11,25 +11,61 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: 'Missing required fields' }, { status: 400 });
     }
 
-    // Hash the password for security before storing it in OTP cache temporarily
+    // Check if user already exists
+    const { data: existingUser } = await supabase
+      .from('Users')
+      .select('id')
+      .eq('email', email)
+      .single();
+
+    if (existingUser) {
+      return NextResponse.json({ message: 'User with this email already exists' }, { status: 409 });
+    }
+
+    // Hash the password
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(password, salt);
 
-    // Generate a 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // Insert the user into Supabase
+    const { data: newUser, error } = await supabase
+      .from('Users')
+      .insert([
+        {
+          user_name: name,
+          email: email,
+          password: passwordHash,
+        },
+      ])
+      .select('id, user_name, email')
+      .single();
 
-    // Store in memory (expires in 10 minutes)
-    otpStore.set(email, {
-      otp,
-      name,
-      passwordHash,
-      expiresAt: Date.now() + 10 * 60 * 1000,
-    });
+    if (error) {
+      console.error('DB insert error:', error);
+      return NextResponse.json(
+        { message: 'Error creating user in database', error: error.message },
+        { status: 500 }
+      );
+    }
 
-    // Send OTP via email using nodemailer
-    await sendOtpEmail(email, otp);
+    // Generate JWT token
+    const token = jwt.sign(
+      { id: newUser.id, email: newUser.email, name: newUser.user_name },
+      process.env.JWT_SECRET || 'fallback_secret',
+      { expiresIn: '7d' }
+    );
 
-    return NextResponse.json({ message: 'OTP sent successfully to email' }, { status: 200 });
+    return NextResponse.json(
+      {
+        message: 'Registration successful',
+        token,
+        user: {
+          id: newUser.id,
+          email: newUser.email,
+          name: newUser.user_name,
+        },
+      },
+      { status: 201 }
+    );
   } catch (error: any) {
     console.error('Registration error:', error);
     return NextResponse.json({ message: 'Server error', error: error.message }, { status: 500 });

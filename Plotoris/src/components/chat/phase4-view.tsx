@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion"; 
 import { 
-  PencilRuler, Lightbulb, CheckCircle2, FlaskConical, Calculator, ShieldCheck, Clock, FileEdit
+  PencilRuler, Lightbulb, CheckCircle2, FlaskConical, ShieldCheck, Clock, FileEdit, Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -13,8 +13,40 @@ import EthicsChecklist from "@/components/chat/phase4/ethics-checklist";
 import TimelineBuilder from "@/components/chat/phase4/timeline-builder";
 import MethodologyBuilder from "@/components/chat/phase4/methodology-builder";
 
+interface DashboardStats {
+  hypothesis: string;
+  variableCount: number;
+  timelineDuration: string;
+  methodologyReadiness: number;
+}
+
 export default function PhaseFourView({ projectId }: { projectId: string }) {
   const [activeTab, setActiveTab] = useState<"dashboard" | "design" | "ethics" | "timeline" | "methodology">("dashboard");
+  const [stats, setStats] = useState<DashboardStats>({
+    hypothesis: "--",
+    variableCount: 0,
+    timelineDuration: "--",
+    methodologyReadiness: 0,
+  });
+  const [statsLoading, setStatsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      if (!projectId) return;
+      setStatsLoading(true);
+      try {
+        const res = await fetch(`/api/phase4/dashboard-stats?project_id=${projectId}`);
+        const data = await res.json();
+        if (!data.error) setStats(data);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setStatsLoading(false);
+      }
+    };
+    fetchStats();
+  }, [projectId]);
+
 
   return (
     <div className="flex-1 overflow-y-auto bg-[#050505] text-[#d4d4d4] p-4 lg:p-8 font-sans relative">
@@ -66,17 +98,21 @@ export default function PhaseFourView({ projectId }: { projectId: string }) {
               {/* Hero Stats */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 {[
-                  { label: "Approved Hypothesis", value: "H1 Active", icon: Lightbulb, color: "text-amber-400" },
-                  { label: "Variable Count", value: "4", icon: FlaskConical, color: "text-blue-400" },
-                  { label: "Estimated Duration", value: "6 Months", icon: Clock, color: "text-fuchsia-400" },
-                  { label: "Methodology Readiness", value: "25%", icon: CheckCircle2, color: "text-emerald-400" },
+                  { label: "Approved Hypothesis", value: stats.hypothesis, icon: Lightbulb, color: "text-amber-400" },
+                  { label: "Variable Count", value: stats.variableCount > 0 ? `${stats.variableCount} Vars` : "--", icon: FlaskConical, color: "text-blue-400" },
+                  { label: "Estimated Duration", value: stats.timelineDuration, icon: Clock, color: "text-fuchsia-400" },
+                  { label: "Methodology Readiness", value: stats.methodologyReadiness > 0 ? `${stats.methodologyReadiness}%` : "--", icon: CheckCircle2, color: "text-emerald-400" },
                 ].map((stat, i) => (
                   <div key={i} className="bg-[#1a1a1a] border border-[#333] rounded-2xl p-5 flex flex-col justify-center">
                     <div className="flex items-center gap-2 mb-2">
                       <stat.icon size={16} className={stat.color} />
                       <span className="text-xs text-[#888] uppercase tracking-wider font-semibold">{stat.label}</span>
                     </div>
-                    <span className="text-2xl font-bold text-white">{stat.value}</span>
+                    {statsLoading ? (
+                      <Loader2 size={18} className="animate-spin text-[#444] mt-1" />
+                    ) : (
+                      <span className="text-2xl font-bold text-white">{stat.value}</span>
+                    )}
                   </div>
                 ))}
               </div>

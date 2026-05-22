@@ -258,7 +258,7 @@ export default function ChatPage() {
                             ) : activeChat === "p-helper" ? (
                                 <PhaseHelperView projectId={activeProject?.id || ""} />
                             ) : activeChat === "p5" ? (
-                                <PhaseFiveView />
+                                <PhaseFiveView projectId={activeProject?.id || ""} />
                             ) : activeChat === "p6" ? (
                                 <PhaseSevenView projectId={activeProject?.id || ""} />
                             ) : activeChat === "p7" ? (

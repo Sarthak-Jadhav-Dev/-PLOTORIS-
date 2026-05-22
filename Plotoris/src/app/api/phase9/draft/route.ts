@@ -29,10 +29,13 @@ const getModel = () => {
 };
 
 async function fetchContext(state: DraftState): Promise<Partial<DraftState>> {
-  const { data: claims } = await supabase
-    .from("research_claims")
-    .select("claim_text, ai_verdict")
-    .eq("project_id", state.projectId);
+  const { data: claimsData } = await supabase
+    .from("Documents")
+    .select("content")
+    .eq("metadata->>project_id", state.projectId)
+    .eq("metadata->>type", "verified_claim");
+
+  const claims = claimsData?.map(c => JSON.parse(c.content)) || [];
 
   const { data: insights } = await supabase
     .from("Insights")

@@ -8,23 +8,20 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-import SurveyBuilder from "@/components/chat/phase5/survey-builder";
 import DatasetManager from "@/components/chat/phase5/dataset-manager";
-import InterviewTranscriber from "@/components/chat/phase5/interview-transcriber";
 import ExperimentTracker from "@/components/chat/phase5/experiment-tracker";
 import DataQualityChecker from "@/components/chat/phase5/data-quality-checker";
 import VariableLinker from "@/components/chat/phase5/variable-linker";
+import DatasetUploader from "@/components/chat/phase5/dataset-uploader";
 
-type Tab = "dashboard" | "survey" | "dataset" | "interview" | "experiment" | "quality" | "linker";
+type Tab = "dashboard" | "dataset" | "experiment" | "quality" | "linker";
 
-export default function PhaseFiveView() {
+export default function PhaseFiveView({ projectId }: { projectId: string }) {
   const [activeTab, setActiveTab] = useState<Tab>("dashboard");
 
   const tabs = [
     { id: "dashboard", label: "Dashboard" },
-    { id: "survey", label: "Survey" },
     { id: "dataset", label: "Dataset" },
-    { id: "interview", label: "Interview" },
     { id: "experiment", label: "Experiment" },
     { id: "quality", label: "Quality" },
     { id: "linker", label: "Variable Linker" },
@@ -32,9 +29,6 @@ export default function PhaseFiveView() {
 
   return (
     <div className="flex-1 overflow-y-auto bg-[#050505] text-[#d4d4d4] p-4 lg:p-8 font-sans relative">
-
-
-
       <div className="max-w-7xl mx-auto space-y-6 mt-8">
         {/* Header */}
         <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 border-b border-[#333] pb-6">
@@ -46,7 +40,7 @@ export default function PhaseFiveView() {
               <h1 className="text-2xl font-bold text-white tracking-tight">Data Collection</h1>
             </div>
             <p className="text-[#888] text-sm">
-              Build surveys, import datasets, transcribe interviews, and validate data — all linked to your variables.
+              Manage datasets, log experimental runs, and validate data quality.
             </p>
           </div>
 
@@ -64,6 +58,9 @@ export default function PhaseFiveView() {
             ))}
           </div>
         </div>
+
+        {/* Global Dataset Uploader stays visible at the top */}
+        <DatasetUploader projectId={projectId} />
 
         <AnimatePresence mode="wait">
           {activeTab === "dashboard" && (
@@ -87,14 +84,12 @@ export default function PhaseFiveView() {
               </div>
 
               {/* Feature Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                  { id: "survey", label: "1. Survey Builder", icon: ClipboardList, color: "text-cyan-400", border: "hover:border-cyan-500/50", desc: "Drag-and-drop survey designer with AI generation." },
-                  { id: "dataset", label: "2. Dataset Manager", icon: FileSpreadsheet, color: "text-blue-400", border: "hover:border-blue-500/50", desc: "Import CSV/Excel/JSON, preview, and manage versions." },
-                  { id: "interview", label: "3. Interview Transcriber", icon: Mic2, color: "text-violet-400", border: "hover:border-violet-500/50", desc: "AI speech-to-text with theme coding via LangChain." },
-                  { id: "experiment", label: "4. Experiment Tracker", icon: FlaskConical, color: "text-amber-400", border: "hover:border-amber-500/50", desc: "Log experimental runs with audit trails." },
-                  { id: "quality", label: "5. Data Quality Checker", icon: ShieldAlert, color: "text-emerald-400", border: "hover:border-emerald-500/50", desc: "LangGraph multi-agent issue detection and scoring." },
-                  { id: "linker", label: "6. Variable Linker", icon: Link2, color: "text-fuchsia-400", border: "hover:border-fuchsia-500/50", desc: "Map dataset columns to Phase 3 variables via embeddings." },
+                  { id: "dataset", label: "1. Resource Kanban", icon: FileSpreadsheet, color: "text-blue-400", border: "hover:border-blue-500/50", desc: "Manage datasets, Colab, and Jupyter notebooks." },
+                  { id: "experiment", label: "2. Experiment Tracker", icon: FlaskConical, color: "text-amber-400", border: "hover:border-amber-500/50", desc: "Production-grade experimental runs logger." },
+                  { id: "quality", label: "3. Data Quality Checker", icon: ShieldAlert, color: "text-emerald-400", border: "hover:border-emerald-500/50", desc: "LangGraph multi-agent issue detection." },
+                  { id: "linker", label: "4. Variable Linker", icon: Link2, color: "text-fuchsia-400", border: "hover:border-fuchsia-500/50", desc: "Map dataset columns to Phase 3 variables." },
                 ].map((card) => (
                   <div
                     key={card.id}
@@ -110,34 +105,24 @@ export default function PhaseFiveView() {
             </motion.div>
           )}
 
-          {activeTab === "survey" && (
-            <motion.div key="survey" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <SurveyBuilder />
-            </motion.div>
-          )}
           {activeTab === "dataset" && (
             <motion.div key="dataset" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <DatasetManager />
-            </motion.div>
-          )}
-          {activeTab === "interview" && (
-            <motion.div key="interview" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <InterviewTranscriber />
+              <DatasetManager projectId={projectId} />
             </motion.div>
           )}
           {activeTab === "experiment" && (
             <motion.div key="experiment" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <ExperimentTracker />
+              <ExperimentTracker projectId={projectId} />
             </motion.div>
           )}
           {activeTab === "quality" && (
             <motion.div key="quality" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <DataQualityChecker />
+              <DataQualityChecker projectId={projectId} />
             </motion.div>
           )}
           {activeTab === "linker" && (
             <motion.div key="linker" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <VariableLinker />
+              <VariableLinker projectId={projectId} />
             </motion.div>
           )}
         </AnimatePresence>

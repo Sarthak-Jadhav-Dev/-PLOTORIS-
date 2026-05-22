@@ -86,7 +86,9 @@ export async function POST(request: Request) {
             fullResponse += text;
             const visibleText = text.replace(/<CLAIM_EXTRACT>[\s\S]*?<\/CLAIM_EXTRACT>/g, "");
             if (visibleText) {
-              controller.enqueue(encoder.encode(visibleText));
+              // useChat expects the AI SDK Data Stream Protocol format
+              const formattedChunk = `0:${JSON.stringify(visibleText)}\n`;
+              controller.enqueue(encoder.encode(formattedChunk));
             }
           }
 
@@ -94,12 +96,10 @@ export async function POST(request: Request) {
           if (claimMatch) {
             try {
               const claimData = JSON.parse(claimMatch[1].trim());
-              await supabase.from("research_claims").insert({
-                project_id: projectId,
-                claim_text: claimData.claim_text,
-                ai_verdict: claimData.ai_verdict,
-                confidence_score: claimData.confidence_score,
-                evidence_summary: claimData.evidence_summary,
+              await supabase.from("Documents").insert({
+                content: JSON.stringify(claimData),
+                embedding: new Array(768).fill(0),
+                metadata: { project_id: projectId, type: "verified_claim" }
               });
             } catch (e) {
               console.error("Claim parse error:", e);

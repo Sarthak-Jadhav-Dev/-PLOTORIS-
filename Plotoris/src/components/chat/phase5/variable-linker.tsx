@@ -1,23 +1,70 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link2, Loader2, Sparkles, CheckCircle2, AlertCircle, XCircle, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 
-export default function VariableLinker() {
+export default function VariableLinker({ projectId }: { projectId: string }) {
   const [isLinking, setIsLinking] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [datasetMetadata, setDatasetMetadata] = useState<any>(null);
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    const fetchResultAndDataset = async () => {
+      try {
+        const [res, dsRes] = await Promise.all([
+          fetch(`/api/phase5/link-variables?project_id=${projectId}`),
+          fetch(`/api/phase5/dataset?project_id=${projectId}`)
+        ]);
+        
+        const data = await res.json();
+        if (data.result) setResult(data.result);
+
+        const dsData = await dsRes.json();
+        if (dsData.metadata) setDatasetMetadata(dsData.metadata);
+      } catch (err) { console.error(err); }
+      finally { setIsLoading(false); }
+    };
+    if (projectId) fetchResultAndDataset();
+  }, [projectId]);
+
+  const getHeaders = () => {
+    const activeProvider = localStorage.getItem(`plotoris_active_text_provider_${projectId}`) || "gemini";
+    const apiKey = localStorage.getItem(`plotoris_${activeProvider}_key_${projectId}`) || "";
+    const headers: any = { "Content-Type": "application/json" };
+    if (apiKey) {
+      headers["x-api-key"] = apiKey;
+      headers["x-api-provider"] = activeProvider;
+    }
+    return headers;
+  };
 
   const handleLink = async () => {
     setIsLinking(true);
+    setProgress(0);
     setResult(null);
+
+    const interval = setInterval(() => {
+      setProgress(p => Math.min(p + (Math.random() * 5 + 2), 90));
+    }, 800);
+
     try {
-      const res = await fetch("/api/phase5/link-variables", { method: "POST" });
+      const res = await fetch("/api/phase5/link-variables", { 
+        method: "POST", 
+        headers: getHeaders(),
+        body: JSON.stringify({ project_id: projectId, hasDataset: !!datasetMetadata })
+      });
       const data = await res.json();
       setResult(data);
     } catch { } finally {
-      setIsLinking(false);
+      clearInterval(interval);
+      setProgress(100);
+      setTimeout(() => {
+        setIsLinking(false);
+      }, 500);
     }
   };
 
@@ -33,29 +80,68 @@ export default function VariableLinker() {
     return "bg-rose-500/10 border-rose-500/20";
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 size={24} className="animate-spin text-[#444]" />
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       {!result && !isLinking && (
-        <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl p-12 flex flex-col items-center text-center">
-          <Link2 size={52} className="text-[#333] mb-6" />
-          <h2 className="text-xl font-bold text-white mb-2">Dataset → Variable Linker</h2>
-          <p className="text-[#888] text-sm max-w-lg mb-4">
-            Uses <strong className="text-fuchsia-400">Supabase pgvector embeddings</strong> and <strong className="text-white">LangChain</strong> to auto-match your dataset columns to the conceptual variables defined in Phase 3.
+        <div className="border border-[#222] bg-[#111] rounded-2xl p-8 text-center max-w-2xl mx-auto mt-10">
+          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mx-auto mb-6">
+            <Link2 size={32} className="text-amber-500" />
+          </div>
+          <h2 className="text-xl font-bold text-white mb-3">Variable Auto-Linker</h2>
+          <p className="text-[#888] text-sm mb-8 leading-relaxed">
+            Connect the raw columns from your dataset to the formal variables you defined in Phase 3. 
+            This semantic mapping enables the AI to perform accurate statistical analysis in Phase 7.
           </p>
-          <p className="text-xs text-[#666] mb-8">
-            Embedding similarity scores ensure each column is matched to its most semantically relevant variable with a confidence percentage.
-          </p>
-          <Button onClick={handleLink} className="bg-fuchsia-600 hover:bg-fuchsia-700 text-white px-10 h-12">
-            <Sparkles size={16} className="mr-2" /> Auto-Link Variables
+
+          {!datasetMetadata ? (
+            <div className="p-4 bg-[#1a1a1a] border border-[#333] rounded-xl mb-6 flex flex-col items-center">
+              <AlertCircle className="w-6 h-6 text-amber-500 mb-2" />
+              <p className="text-sm text-amber-400">Please upload a dataset in the Active Dataset section above first.</p>
+            </div>
+          ) : (
+            <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl mb-6 flex flex-col items-center">
+              <CheckCircle2 className="w-6 h-6 text-emerald-500 mb-2" />
+              <p className="text-sm text-emerald-400 font-medium">Dataset Ready: {datasetMetadata.filename}</p>
+              <p className="text-xs text-emerald-500/70">{datasetMetadata.columns?.length} columns detected</p>
+            </div>
+          )}
+
+          <Button 
+            onClick={handleLink} 
+            className="bg-amber-600 hover:bg-amber-700 text-white w-full max-w-sm rounded-xl py-6 text-base font-medium transition-all hover:scale-[1.02] hover:shadow-lg hover:shadow-amber-600/20"
+            disabled={!datasetMetadata}
+          >
+            Run Auto-Linker
           </Button>
         </div>
       )}
 
-      {isLinking && (
-        <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl p-16 flex flex-col items-center">
-          <Loader2 size={40} className="animate-spin text-fuchsia-500 mb-4" />
-          <p className="text-white font-medium animate-pulse">Querying Supabase pgvector for semantic matches...</p>
-          <p className="text-[#888] text-xs mt-2">LangChain is embedding column names and matching against Phase 3 variable definitions.</p>
+      {isLinking && !result && (
+        <div className="bg-[#111] border border-[#222] rounded-2xl p-12 text-center max-w-2xl mx-auto mt-10">
+          <div className="relative w-16 h-16 mx-auto mb-6">
+            <div className="absolute inset-0 border-4 border-amber-500/20 rounded-full"></div>
+            <div className="absolute inset-0 border-4 border-amber-500 rounded-full border-t-transparent animate-spin"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Sparkles size={20} className="text-amber-400 animate-pulse" />
+            </div>
+          </div>
+          <h2 className="text-xl font-bold text-white mb-2">Mapping Variables...</h2>
+          <p className="text-[#888] text-sm mb-6">Using LLM to semantically link your dataset columns to research variables.</p>
+          
+          <div className="w-full bg-[#1a1a1a] rounded-full h-2.5 overflow-hidden">
+            <div 
+              className="bg-amber-600 h-2.5 rounded-full transition-all duration-300 ease-out" 
+              style={{ width: `${progress}%` }}
+            ></div>
+          </div>
         </div>
       )}
 

@@ -1,37 +1,52 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FileEdit, Loader2, Download, RefreshCw, Sparkles, Copy, CheckCheck } from "lucide-react";
+import { FileEdit, Loader2, RefreshCw, Sparkles, Copy, CheckCheck, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import ReactMarkdown from "react-markdown";
 
 export default function MethodologyBuilder({ projectId }: { projectId: string }) {
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [draft, setDraft] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  // Load previously saved methodology on mount
+  useEffect(() => {
+    const fetchSaved = async () => {
+      try {
+        const res = await fetch(`/api/phase4/draft-methodology?project_id=${projectId}`);
+        const data = await res.json();
+        if (data.methodology) setDraft(data.methodology);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    if (projectId) fetchSaved();
+  }, [projectId]);
+
+  const getHeaders = () => {
+    const activeTextProvider = localStorage.getItem(`plotoris_active_text_provider_${projectId}`) || "gemini";
+    const activeEmbeddingProvider = localStorage.getItem(`plotoris_active_embedding_provider_${projectId}`) || "gemini";
+    const textKey = localStorage.getItem(`plotoris_${activeTextProvider}_key_${projectId}`) || "";
+    const embeddingKey = localStorage.getItem(`plotoris_${activeEmbeddingProvider}_key_${projectId}`) || "";
+    const headers: any = { "Content-Type": "application/json" };
+    if (textKey) { headers["x-api-key"] = textKey; headers["x-api-provider"] = activeTextProvider; }
+    if (embeddingKey) { headers["x-embedding-key"] = embeddingKey; headers["x-embedding-provider"] = activeEmbeddingProvider; }
+    return headers;
+  };
 
   const handleGenerate = async () => {
     setIsGenerating(true);
     setDraft(null);
     try {
-      const activeTextProvider = localStorage.getItem(`plotoris_active_text_provider_${projectId}`) || "gemini";
-      const activeEmbeddingProvider = localStorage.getItem(`plotoris_active_embedding_provider_${projectId}`) || "gemini";
-      const textKey = localStorage.getItem(`plotoris_${activeTextProvider}_key_${projectId}`) || "";
-      const embeddingKey = localStorage.getItem(`plotoris_${activeEmbeddingProvider}_key_${projectId}`) || "";
-      const headers: any = { "Content-Type": "application/json" };
-      if (textKey) {
-        headers["x-api-key"] = textKey;
-        headers["x-api-provider"] = activeTextProvider;
-      }
-      if (embeddingKey) {
-        headers["x-embedding-key"] = embeddingKey;
-        headers["x-embedding-provider"] = activeEmbeddingProvider;
-      }
-
       const res = await fetch("/api/phase4/draft-methodology", {
         method: "POST",
-        headers,
-        body: JSON.stringify({ phase: 4, project_id: projectId }),
+        headers: getHeaders(),
+        body: JSON.stringify({ project_id: projectId }),
       });
       const data = await res.json();
       setDraft(data.methodology);
@@ -50,93 +65,112 @@ export default function MethodologyBuilder({ projectId }: { projectId: string })
     }
   };
 
-  const sections = draft
-    ? draft.split(/\n(?=#{1,2} )/).filter(Boolean)
-    : [];
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 size={24} className="animate-spin text-[#444]" />
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-6">
       <div className="bg-[#1a1a1a] border border-[#333] p-8 rounded-2xl shadow-xl">
-        <div className="flex items-center justify-between mb-6">
+        
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-fuchsia-500/10 flex items-center justify-center">
               <FileEdit size={20} className="text-fuchsia-400" />
             </div>
             <div>
               <h2 className="text-xl font-bold text-white">Methodology Builder</h2>
-              <p className="text-sm text-[#888]">Auto-draft your full academic methodology section from all Phase 4 decisions.</p>
+              <p className="text-sm text-[#888]">
+                Synthesizes data from all phases to draft a journal-quality methodology section.
+              </p>
             </div>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             {draft && (
-              <>
-                <Button variant="outline" onClick={handleCopy} className="border-[#444] text-white hover:bg-[#222]">
-                  {copied ? <><CheckCheck size={14} className="mr-2 text-emerald-400" /> Copied!</> : <><Copy size={14} className="mr-2" /> Copy</>}
-                </Button>
-                <Button variant="outline" onClick={handleGenerate} className="border-[#444] text-white hover:bg-[#222]">
-                  <RefreshCw size={14} className="mr-2" /> Regenerate
-                </Button>
-              </>
+              <Button
+                variant="outline"
+                onClick={handleCopy}
+                className="border-[#444] bg-transparent text-[#aaa] hover:text-white hover:bg-[#222] gap-2"
+              >
+                {copied
+                  ? <><CheckCheck size={14} className="text-emerald-400" /> Copied!</>
+                  : <><Copy size={14} /> Copy Markdown</>}
+              </Button>
             )}
             <Button
               onClick={handleGenerate}
               disabled={isGenerating}
-              className="bg-fuchsia-600 hover:bg-fuchsia-700 text-white px-6"
+              className={`gap-2 text-white ${draft ? "bg-[#333] hover:bg-[#444] border border-[#555]" : "bg-fuchsia-600 hover:bg-fuchsia-700"}`}
             >
-              {isGenerating ? (
-                <><Loader2 size={16} className="mr-2 animate-spin" /> Drafting...</>
-              ) : (
-                <><Sparkles size={16} className="mr-2" /> Generate Draft</>
-              )}
+              {isGenerating
+                ? <><Loader2 size={15} className="animate-spin" /> Drafting...</>
+                : draft
+                  ? <><RefreshCw size={15} /> Regenerate</>
+                  : <><Sparkles size={15} /> Generate Draft</>}
             </Button>
           </div>
         </div>
 
+        {/* Empty State */}
         {!draft && !isGenerating && (
           <div className="border-2 border-dashed border-[#333] rounded-xl p-16 text-center flex flex-col items-center">
-            <FileEdit size={48} className="text-[#333] mb-4" />
-            <h3 className="text-white font-medium mb-2">No draft generated yet</h3>
-            <p className="text-[#888] text-sm max-w-md">
-              Click "Generate Draft" to create a journal-quality methodology section based on your research design, sample size, and ethics decisions.
+            <BookOpen size={48} className="text-[#333] mb-4" />
+            <h3 className="text-white font-medium mb-2">No methodology draft yet</h3>
+            <p className="text-[#888] text-sm max-w-md mb-6">
+              Click "Generate Draft" to synthesize a comprehensive 10-section Research Methodology from your Phase 1–4 data.
+            </p>
+            <Button
+              onClick={handleGenerate}
+              className="bg-fuchsia-600 hover:bg-fuchsia-700 text-white gap-2 px-8"
+            >
+              <Sparkles size={15} /> Generate Draft
+            </Button>
+          </div>
+        )}
+
+        {/* Loading State */}
+        {isGenerating && (
+          <div className="flex flex-col items-center justify-center py-16 gap-4">
+            <Loader2 size={40} className="animate-spin text-fuchsia-500" />
+            <p className="text-white font-medium animate-pulse">Synthesizing methodology sections...</p>
+            <p className="text-[#666] text-xs">
+              Drawing from your research topic, literature, hypotheses, variables, design, ethics & timeline
             </p>
           </div>
         )}
 
-        {isGenerating && (
-          <div className="flex flex-col items-center justify-center py-16">
-            <Loader2 size={40} className="animate-spin text-fuchsia-500 mb-4" />
-            <p className="text-white font-medium animate-pulse">Synthesizing methodology sections...</p>
-            <p className="text-[#888] text-xs mt-2">Drawing from your design, variables, sample, and ethics decisions</p>
-          </div>
-        )}
-
+        {/* Rendered Methodology */}
         <AnimatePresence>
           {draft && !isGenerating && (
             <motion.div
               key="draft"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="space-y-6"
+              className="space-y-4"
             >
-              {/* Academic-styled editor output */}
-              <div
-                className="bg-[#0d0d0d] border border-[#333] rounded-xl p-8 font-serif text-[#d4d4d4] leading-relaxed space-y-6 whitespace-pre-wrap min-h-[400px]"
-                contentEditable
-                suppressContentEditableWarning
-              >
-                {draft}
+              <div className="bg-[#0a0a0a] border border-[#2a2a2a] rounded-xl p-8 min-h-[400px]">
+                <div className="methodology-prose max-w-none">
+                  <ReactMarkdown>{draft}</ReactMarkdown>
+                </div>
               </div>
 
-              <div className="flex items-center justify-between pt-4 border-t border-[#333]">
-                <p className="text-xs text-[#666]">
-                  This section is editable. Click anywhere in the text above to make changes.
+              <div className="flex items-center justify-between pt-2 border-t border-[#222]">
+                <p className="text-xs text-[#555]">
+                  Generated from all Phase 1–4 context. Regenerate to update after making changes to other phases.
                 </p>
-                <div className="flex gap-2">
-                  <Button variant="outline" className="border-[#444] text-white hover:bg-[#222]">
-                    <Download size={14} className="mr-2" /> Export DOCX
-                  </Button>
-                </div>
+                <Button
+                  variant="outline"
+                  onClick={handleCopy}
+                  className="border-[#444] bg-transparent text-[#aaa] hover:text-white hover:bg-[#222] gap-2"
+                >
+                  {copied ? <><CheckCheck size={14} className="text-emerald-400" /> Copied!</> : <><Copy size={14} /> Copy Markdown</>}
+                </Button>
               </div>
             </motion.div>
           )}

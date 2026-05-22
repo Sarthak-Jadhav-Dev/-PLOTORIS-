@@ -35,7 +35,18 @@ export async function POST(req: Request) {
           embedding: vector,
           metadata: { project_id, phase: 1, role: "assistant", type: "phase_1_summary" }
         });
-      } catch (err) { console.warn("Embedding failed", err); }
+        
+        // Save the structured data to our new phase1_data table
+        await supabase.from("phase1_data").upsert({
+          project_id,
+          problem,
+          question,
+          scope,
+          objectives,
+          summary,
+          updated_at: new Date().toISOString()
+        });
+      } catch (err) { console.warn("Saving to database failed", err); }
     }
 
     const nodes = [crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID(), crypto.randomUUID()];

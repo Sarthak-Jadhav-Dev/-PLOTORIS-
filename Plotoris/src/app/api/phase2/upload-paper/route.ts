@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { getEmbeddings } from "@/lib/ai-provider";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { supabase } from "@/lib/supabase";
-const pdfParse = require("pdf-parse");
+import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
 import { StateGraph, START, END } from "@langchain/langgraph";
 import { BaseMessage } from "@langchain/core/messages";
 
@@ -62,8 +62,14 @@ const graphState = {
 // Node: Parse PDF
 async function parsePdfNode(state: AgentState): Promise<Partial<AgentState>> {
   try {
-    const pdfData = await pdfParse(state.fileBuffer);
-    const textContent = pdfData.text;
+    const blob = new Blob([state.fileBuffer], { type: 'application/pdf' });
+    const loader = new PDFLoader(blob, { splitPages: false });
+    const docs = await loader.load();
+    
+    // Extract and sanitize text (PostgreSQL rejects \u0000 null characters)
+    let textContent = docs.map(d => d.pageContent).join("\n\n");
+    textContent = textContent.replace(/\0/g, '');
+    
     if (!textContent || textContent.trim().length === 0) {
       return { error: "Could not extract text from PDF." };
     }

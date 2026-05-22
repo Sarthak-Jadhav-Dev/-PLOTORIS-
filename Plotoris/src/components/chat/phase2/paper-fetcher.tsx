@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, Loader2, Plus, X, FileText, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -18,16 +18,45 @@ export default function PaperFetcher({
   const [addingIds, setAddingIds] = useState<Set<string>>(new Set());
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
 
+  // Auto-fill topic from Phase 1 data
+  useEffect(() => {
+    async function loadPhase1Data() {
+      if (!projectId) return;
+      try {
+        const res = await fetch(`/api/phase1/load?project_id=${projectId}`);
+        const data = await res.json();
+        if (data.found && data.data && data.data.question) {
+          const q = data.data.question;
+          const questionStr = q.version || q.question || (typeof q === "string" ? q : "");
+          if (questionStr) {
+            setTopic(questionStr);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load Phase 1 data", err);
+      }
+    }
+    loadPhase1Data();
+  }, [projectId]);
+
   const handleFetch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!topic.trim()) return;
 
     setIsFetching(true);
     try {
+      const activeTextProvider = localStorage.getItem(`plotoris_active_text_provider_${projectId}`) || "gemini";
+      const textKey = localStorage.getItem(`plotoris_${activeTextProvider}_key_${projectId}`) || "";
+      const headers: any = { "Content-Type": "application/json" };
+      if (textKey) {
+        headers["x-api-key"] = textKey;
+        headers["x-api-provider"] = activeTextProvider;
+      }
+
       const res = await fetch("/api/phase2/fetch-papers", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: topic, limit }),
+        headers,
+        body: JSON.stringify({ query: topic, limit, project_id: projectId }),
       });
       const data = await res.json();
       setResults(data.papers || []);

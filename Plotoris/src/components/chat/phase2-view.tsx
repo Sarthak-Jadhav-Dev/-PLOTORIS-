@@ -1,26 +1,64 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  BookOpen, Network, FileText, Search, Activity, Sparkles, Plus, Clock, X, CheckCircle2
+  BookOpen, Network, FileText, Search, Activity, Sparkles, Plus, Clock, X, CheckCircle2, Trash, Loader2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 import PdfUploader from "./phase2/pdf-uploader";
-import SemanticSearch from "./phase2/semantic-search";
+import LitReviewGenerator from "./phase2/lit-review-generator";
 import PaperFetcher from "./phase2/paper-fetcher";
 import GapDetector from "./phase2/gap-detector";
 import KnowledgeGraph from "./phase2/knowledge-graph";
 
 export default function PhaseTwoView({ projectId }: { projectId: string }) {
-  const [activeTab, setActiveTab] = useState<"dashboard" | "fetch" | "upload" | "search" | "gaps" | "graph">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "fetch" | "upload" | "review" | "gaps" | "graph">("dashboard");
   const [bucketPapers, setBucketPapers] = useState<any[]>([]);
   const [isBucketOpen, setIsBucketOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchBucketPapers = async () => {
+      try {
+        const res = await fetch(`/api/phase2/bucket-papers?projectId=${projectId}`);
+        const data = await res.json();
+        if (data.papers) {
+          setBucketPapers(data.papers);
+        }
+      } catch (err) {
+        console.error("Failed to load bucket papers", err);
+      }
+    };
+    if (projectId) fetchBucketPapers();
+  }, [projectId]);
 
   const handlePaperAdded = (paper: any) => {
-    setBucketPapers(prev => [...prev, paper]);
+    setBucketPapers(prev => {
+      // Avoid duplicates on fast successive uploads
+      if (prev.find(p => (p.id || p.paper_id) === (paper.id || paper.paper_id))) return prev;
+      return [...prev, paper];
+    });
+  };
+
+  const handleDeletePaper = async (paperId: string) => {
+    if (!paperId) return;
+    setDeletingId(paperId);
+    try {
+      const res = await fetch(`/api/phase2/bucket-papers?paperId=${paperId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        setBucketPapers(prev => prev.filter(p => (p.id || p.paper_id) !== paperId));
+      } else {
+        console.error("Failed to delete paper", data.error);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   return (
@@ -91,14 +129,14 @@ export default function PhaseTwoView({ projectId }: { projectId: string }) {
               {/* 2. Feature Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div 
-                  onClick={() => setActiveTab("search")}
-                  className="bg-[#1a1a1a] border border-[#333] hover:border-indigo-500/50 rounded-2xl p-6 cursor-pointer transition-all group"
+                  onClick={() => setActiveTab("review")}
+                  className="bg-[#1a1a1a] border border-[#333] hover:border-purple-500/50 rounded-2xl p-6 cursor-pointer transition-all group"
                 >
-                  <div className="w-10 h-10 rounded-lg bg-indigo-500/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                    <Search size={20} className="text-indigo-400" />
+                  <div className="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <BookOpen size={20} className="text-purple-400" />
                   </div>
-                  <h3 className="text-white font-semibold mb-2">Semantic Search</h3>
-                  <p className="text-sm text-[#888]">Search your corpus using natural language and conceptual meaning.</p>
+                  <h3 className="text-white font-semibold mb-2">Literature Review</h3>
+                  <p className="text-sm text-[#888]">Extract structured insights from all papers in your Knowledge Bucket.</p>
                 </div>
                 
                 <div 
@@ -166,9 +204,9 @@ export default function PhaseTwoView({ projectId }: { projectId: string }) {
             </motion.div>
           )}
 
-          {activeTab === "search" && (
-            <motion.div key="search" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <SemanticSearch projectId={projectId} />
+          {activeTab === "review" && (
+            <motion.div key="review" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+              <LitReviewGenerator projectId={projectId} bucketPapers={bucketPapers} />
             </motion.div>
           )}
           
@@ -232,8 +270,20 @@ export default function PhaseTwoView({ projectId }: { projectId: string }) {
                     <div key={i} className="bg-[#0d0d0d] border border-[#222] hover:border-blue-500/50 p-4 rounded-xl transition-colors group">
                       <div className="flex justify-between items-start gap-2 mb-2">
                         <h4 className="text-white text-sm font-semibold line-clamp-2 leading-tight">{p.title}</h4>
-                        <div className="w-6 h-6 rounded-full bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-                          <CheckCircle2 size={12} className="text-blue-400" />
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                            <CheckCircle2 size={12} className="text-blue-400" />
+                          </div>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeletePaper(p.id || p.paper_id);
+                            }}
+                            disabled={deletingId === (p.id || p.paper_id)}
+                            className="w-6 h-6 rounded-full bg-rose-500/10 hover:bg-rose-500/20 flex items-center justify-center flex-shrink-0 transition-colors"
+                          >
+                            {deletingId === (p.id || p.paper_id) ? <Loader2 size={12} className="text-rose-400 animate-spin" /> : <Trash size={12} className="text-rose-400" />}
+                          </button>
                         </div>
                       </div>
                       <p className="text-[#888] text-xs mb-3 line-clamp-1">{p.authors}</p>

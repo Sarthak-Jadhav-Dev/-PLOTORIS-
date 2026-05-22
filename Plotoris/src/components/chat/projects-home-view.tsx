@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus, FolderKanban, Clock, Users, Search, Grid3X3,
-  List, MoreHorizontal, ArrowRight, Sparkles, Loader2, RefreshCw
+  List, MoreHorizontal, ArrowRight, Sparkles, Loader2, RefreshCw, Trash2, AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,6 +69,8 @@ export default function ProjectsHomeView({ onOpenProject, onCreated, onInvitatio
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [searchQuery, setSearchQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState<{id: string, name: string} | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const user = getUser();
 
   const fetchProjects = useCallback(async () => {
@@ -80,6 +82,27 @@ export default function ProjectsHomeView({ onOpenProject, onCreated, onInvitatio
     } catch { /* silent */ }
     finally { setIsLoading(false); }
   }, []);
+
+  const handleDeleteProject = async () => {
+    if (!projectToDelete) return;
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/projects/${projectToDelete.id}`, {
+        method: "DELETE",
+        headers: authHeaders()
+      });
+      if (res.ok) {
+        setProjectToDelete(null);
+        fetchProjects(); // Refresh the list
+      } else {
+        console.error("Failed to delete project");
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   useEffect(() => { fetchProjects(); }, [fetchProjects]);
 
@@ -213,6 +236,12 @@ export default function ProjectsHomeView({ onOpenProject, onCreated, onInvitatio
                             <DropdownMenuItem className="focus:bg-[#1a1a1a] text-sm cursor-pointer" onClick={() => onOpenProject(project.id, project.name)}>
                               Open Project
                             </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              className="focus:bg-rose-500/10 text-rose-500 focus:text-rose-400 text-sm cursor-pointer mt-1" 
+                              onClick={() => setProjectToDelete({ id: project.id, name: project.name })}
+                            >
+                              <Trash2 size={14} className="mr-2" /> Delete Project
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
@@ -297,6 +326,50 @@ export default function ProjectsHomeView({ onOpenProject, onCreated, onInvitatio
       </div>
 
       <CreateProjectDialog open={createOpen} onOpenChange={setCreateOpen} onCreated={fetchProjects} />
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {projectToDelete && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-[#0a0a0a] border border-[#222] rounded-2xl p-6 max-w-md w-full shadow-2xl"
+            >
+              <div className="flex items-center gap-3 mb-4 text-rose-500">
+                <div className="w-10 h-10 rounded-full bg-rose-500/10 flex items-center justify-center">
+                  <AlertTriangle size={20} />
+                </div>
+                <h2 className="text-xl font-bold">Delete Project?</h2>
+              </div>
+              <p className="text-[#888] text-sm leading-relaxed mb-6">
+                Are you absolutely sure you want to delete <strong className="text-white">{projectToDelete.name}</strong>? 
+                This will permanently delete all associated data, documents, vector embeddings, and team access records from the database. 
+                This action cannot be undone.
+              </p>
+              <div className="flex justify-end gap-3">
+                <Button 
+                  variant="ghost" 
+                  onClick={() => setProjectToDelete(null)}
+                  disabled={isDeleting}
+                  className="text-[#888] hover:text-white hover:bg-[#1a1a1a]"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleDeleteProject}
+                  disabled={isDeleting}
+                  className="bg-rose-600 hover:bg-rose-700 text-white"
+                >
+                  {isDeleting ? <Loader2 size={16} className="animate-spin mr-2" /> : <Trash2 size={16} className="mr-2" />}
+                  Yes, delete project
+                </Button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

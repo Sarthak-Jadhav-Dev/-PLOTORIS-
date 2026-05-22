@@ -43,22 +43,47 @@ export function getEmbeddings(req: Request) {
     throw new Error("Embeddings API key is required. Please set it in Project Settings.");
   }
 
+  let embeddings;
   if (provider === "openai") {
-    return new OpenAIEmbeddings({
+    embeddings = new OpenAIEmbeddings({
       apiKey: apiKey,
       modelName: "text-embedding-3-small",
+      dimensions: 768,
     });
-  }
-
-  if (provider === "cohere") {
-    return new CohereEmbeddings({
+  } else if (provider === "cohere") {
+    embeddings = new CohereEmbeddings({
       apiKey: apiKey,
       model: "embed-english-v3.0",
     });
+  } else {
+    embeddings = new GoogleGenerativeAIEmbeddings({
+      apiKey: apiKey,
+      model: "text-embedding-004",
+    });
   }
 
-  return new GoogleGenerativeAIEmbeddings({
-    apiKey: apiKey,
-    model: "text-embedding-004",
-  });
+  // Force exactly 768 dimensions for Supabase compatibility
+  const force768 = (vec: number[]) => {
+    if (vec.length === 768) return vec;
+    let newVec = vec.slice(0, 768);
+    if (newVec.length < 768) {
+      newVec = newVec.concat(new Array(768 - newVec.length).fill(0));
+    }
+    const mag = Math.sqrt(newVec.reduce((sum, val) => sum + val * val, 0));
+    return newVec.map(v => v / (mag || 1));
+  };
+
+  const originalEmbedQuery = embeddings.embedQuery.bind(embeddings);
+  embeddings.embedQuery = async (text: string) => {
+    const vec = await originalEmbedQuery(text);
+    return force768(vec);
+  };
+
+  const originalEmbedDocuments = embeddings.embedDocuments.bind(embeddings);
+  embeddings.embedDocuments = async (texts: string[]) => {
+    const vecs = await originalEmbedDocuments(texts);
+    return vecs.map(force768);
+  };
+
+  return embeddings;
 }

@@ -243,7 +243,10 @@ export default function ChatPage() {
                         <motion.div key="chat" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                             className="flex-1 flex flex-col min-h-0 overflow-hidden">
                             {activeChat === "p1" ? (
-                                <PhaseOneView projectId={activeProject?.id} />
+                                <PhaseOneView 
+                                    projectId={activeProject?.id} 
+                                    onProceedToPhase2={() => handleSelectPhase("p2")} 
+                                />
                             ) : activeChat === "p2" ? (
                                 <PhaseTwoView projectId={activeProject?.id || ""} />
                             ) : activeChat === "p3" ? (

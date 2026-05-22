@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Lightbulb, Activity, CheckCircle, Network, SearchCode, GitCompare, UserCheck
@@ -18,6 +18,23 @@ export default function PhaseThreeView({ projectId }: { projectId: string }) {
 
   // State to hold the current hypothesis draft
   const [hypothesisDraft, setHypothesisDraft] = useState<any>(null);
+  const [savedVariables, setSavedVariables] = useState<any[]>([]);
+
+  const fetchSavedVariables = async () => {
+    try {
+      const res = await fetch(`/api/phase3/saved-variables?projectId=${projectId}`);
+      const data = await res.json();
+      if (data.variables) {
+        setSavedVariables(data.variables);
+      }
+    } catch (err) {
+      console.error("Failed to fetch saved variables", err);
+    }
+  };
+
+  useEffect(() => {
+    if (projectId) fetchSavedVariables();
+  }, [projectId]);
 
   return (
     <div className="flex-1 overflow-y-auto bg-[#050505] text-[#d4d4d4] p-4 lg:p-8 font-sans relative">
@@ -69,7 +86,7 @@ export default function PhaseThreeView({ projectId }: { projectId: string }) {
               {/* Hero Stats */}
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 {[
-                  { label: "Vars Mapped", value: "0", icon: Network, color: "text-blue-400" },
+                  { label: "Saved Variables", value: savedVariables.length.toString(), icon: Network, color: "text-blue-400" },
                   { label: "Hypotheses Drafted", value: hypothesisDraft ? "1" : "0", icon: Lightbulb, color: "text-amber-400" },
                   { label: "Testability Score", value: "--/100", icon: CheckCircle, color: "text-emerald-400" },
                   { label: "Literature Validation", value: "Pending", icon: SearchCode, color: "text-indigo-400" },
@@ -116,10 +133,15 @@ export default function PhaseThreeView({ projectId }: { projectId: string }) {
 
           {activeTab === "builder" && (
             <motion.div key="builder" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-              <HypothesisBuilder projectId={projectId} onHypothesisGenerated={(data) => {
-                setHypothesisDraft(data);
-                setActiveTab("scorer");
-              }} />
+              <HypothesisBuilder 
+                projectId={projectId} 
+                savedVariables={savedVariables}
+                onSavedVariablesUpdate={fetchSavedVariables}
+                onHypothesisGenerated={(data) => {
+                  setHypothesisDraft(data);
+                  setActiveTab("scorer");
+                }} 
+              />
             </motion.div>
           )}
 

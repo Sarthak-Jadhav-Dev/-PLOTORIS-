@@ -68,13 +68,24 @@ export async function POST(req: Request) {
 
     const graphData = JSON.parse(rawJson);
 
-    // Map output to React Flow compatible format
-    const nodes = (graphData.nodes || []).map((n: any, i: number) => ({
-      id: n.id,
-      position: { x: Math.random() * 600, y: Math.random() * 400 }, // Random initial layout
-      data: { label: n.label, type: n.type },
-      type: "customNode"
-    }));
+    // Map output to React Flow compatible format using a circular layout
+    const numNodes = graphData.nodes?.length || 1;
+    const radius = Math.max(300, numNodes * 25); // Scale radius based on node count to prevent overlap
+    const centerX = 400;
+    const centerY = 350;
+
+    const nodes = (graphData.nodes || []).map((n: any, i: number) => {
+      const angle = (i / numNodes) * 2 * Math.PI;
+      return {
+        id: n.id,
+        position: { 
+          x: centerX + radius * Math.cos(angle), 
+          y: centerY + radius * Math.sin(angle) 
+        },
+        data: { label: n.label, type: n.type },
+        type: "customNode"
+      };
+    });
 
     const edges = (graphData.edges || []).map((e: any) => ({
       id: e.id,

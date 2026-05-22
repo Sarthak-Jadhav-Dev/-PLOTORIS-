@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Check, ChevronRight, Loader2, Network, FastForward, Wand2 } from "lucide-react";
+import { Check, ChevronRight, Loader2, Network, FastForward, Wand2, Edit2, Save, X as CloseIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -21,9 +21,10 @@ const STEPS = [
 
 interface PhaseOneViewProps {
   projectId?: string;
+  onProceedToPhase2?: () => void;
 }
 
-export default function PhaseOneView({ projectId }: PhaseOneViewProps) {
+export default function PhaseOneView({ projectId, onProceedToPhase2 }: PhaseOneViewProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [isFinalizing, setIsFinalizing] = useState(false);
   const [finalResult, setFinalResult] = useState<any>(null);
@@ -38,6 +39,45 @@ export default function PhaseOneView({ projectId }: PhaseOneViewProps) {
   const [questionData, setQuestionData] = useState<any>(null);
   const [scope, setScope] = useState<any>(null);
   const [objectives, setObjectives] = useState<any>(null);
+  
+  const [isLoadingData, setIsLoadingData] = useState(true);
+  const [isEditingData, setIsEditingData] = useState(false);
+  const [editForm, setEditForm] = useState({
+    problem: "",
+    question: "",
+    inclusions: "",
+    exclusions: "",
+    objectives: ""
+  });
+
+  useEffect(() => {
+    async function loadData() {
+      if (!projectId) {
+        setIsLoadingData(false);
+        return;
+      }
+      try {
+        const res = await fetch(`/api/phase1/load?project_id=${projectId}`);
+        const data = await res.json();
+        if (data.found && data.data) {
+          setProblem(data.data.problem);
+          setQuestionData(data.data.question);
+          setScope(data.data.scope);
+          setObjectives(data.data.objectives);
+          setFinalResult({
+            ai_summary: data.data.summary,
+            knowledge_graph_nodes: [] 
+          });
+          setCurrentStep(4);
+        }
+      } catch (err) {
+        console.error("Failed to load phase 1 data", err);
+      } finally {
+        setIsLoadingData(false);
+      }
+    }
+    loadData();
+  }, [projectId]);
 
   const handleFinalize = async (finalObjectives: any) => {
     setObjectives(finalObjectives);
@@ -118,8 +158,78 @@ export default function PhaseOneView({ projectId }: PhaseOneViewProps) {
     }
   };
 
+  const handleEditClick = () => {
+    setEditForm({
+      problem: problem?.statement || problem || "",
+      question: questionData?.version || questionData?.question || questionData || "",
+      inclusions: (scope?.inclusions || []).map((i: any) => i.item || i).join("\n"),
+      exclusions: (scope?.exclusions || []).map((i: any) => i.item || i).join("\n"),
+      objectives: Array.isArray(objectives) 
+        ? objectives.map((o: any) => o.objective || o.smart_objective || o).join("\n\n")
+        : (objectives?.smart_objective || objectives?.objective || (typeof objectives === "string" ? objectives : ""))
+    });
+    setIsEditingData(true);
+  };
+
+  const handleSaveChanges = async () => {
+    setIsFinalizing(true);
+    setIsEditingData(false);
+
+    const newProblem = { statement: editForm.problem };
+    const newQuestion = { version: editForm.question };
+    const newScope = {
+      inclusions: editForm.inclusions.split("\n").filter(i => i.trim()).map(i => ({ item: i })),
+      exclusions: editForm.exclusions.split("\n").filter(i => i.trim()).map(i => ({ item: i }))
+    };
+    const newObjectives = editForm.objectives.split("\n\n").filter(o => o.trim()).map(o => ({ objective: o }));
+
+    setProblem(newProblem);
+    setQuestionData(newQuestion);
+    setScope(newScope);
+    setObjectives(newObjectives);
+
+    try {
+      const activeTextProvider = projectId ? localStorage.getItem(`plotoris_active_text_provider_${projectId}`) || "gemini" : "gemini";
+      const activeEmbeddingProvider = projectId ? localStorage.getItem(`plotoris_active_embedding_provider_${projectId}`) || "gemini" : "gemini";
+      const textKey = projectId ? localStorage.getItem(`plotoris_${activeTextProvider}_key_${projectId}`) || "" : "";
+      const embeddingKey = projectId ? localStorage.getItem(`plotoris_${activeEmbeddingProvider}_key_${projectId}`) || "" : "";
+      const headers: any = { "Content-Type": "application/json" };
+      if (textKey) {
+        headers["x-api-key"] = textKey;
+        headers["x-api-provider"] = activeTextProvider;
+      }
+      if (embeddingKey) {
+        headers["x-embedding-key"] = embeddingKey;
+        headers["x-embedding-provider"] = activeEmbeddingProvider;
+      }
+
+      const res = await fetch("/api/phase1/finalize", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          project_id: projectId,
+          problem: newProblem,
+          question: newQuestion,
+          scope: newScope,
+          objectives: newObjectives
+        })
+      });
+      const data = await res.json();
+      setFinalResult(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsFinalizing(false);
+    }
+  };
+
   return (
     <div className="flex-1 overflow-y-auto bg-[#050505] relative flex flex-col">
+      {isLoadingData && (
+        <div className="absolute inset-0 z-50 bg-[#050505] flex items-center justify-center">
+          <Loader2 size={32} className="animate-spin text-orange-500" />
+        </div>
+      )}
       {/* Top Progress Bar */}
       <div className="sticky top-0 z-20 bg-[#0a0a0a]/80 backdrop-blur-md border-b border-[#1a1a1a] px-6 py-4">
         <div className="max-w-4xl mx-auto">
@@ -250,29 +360,139 @@ export default function PhaseOneView({ projectId }: PhaseOneViewProps) {
           )}
 
           {currentStep === 4 && finalResult && (
-            <motion.div key="step4" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="max-w-2xl mx-auto text-center py-20">
+            <motion.div key="step4" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="max-w-4xl mx-auto text-center py-10 w-full">
               <div className="w-20 h-20 bg-green-500/20 border border-green-500/50 rounded-full flex items-center justify-center mx-auto mb-6">
                 <Network size={32} className="text-green-400" />
               </div>
               <h1 className="text-4xl font-bold text-white mb-4">Phase 1 Complete!</h1>
-              <p className="text-lg text-[#a0aec0] mb-8 leading-relaxed">
+              <p className="text-lg text-[#a0aec0] mb-8 leading-relaxed max-w-2xl mx-auto">
                 {finalResult.ai_summary}
               </p>
               
-              <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl p-6 flex flex-col gap-4 text-left mb-8">
-                <h3 className="text-white font-semibold border-b border-[#333] pb-2">Knowledge Graph Seeded Nodes</h3>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="outline" className="bg-orange-500/10 text-orange-400 border-orange-500/20">Problem Statement</Badge>
-                  <Badge variant="outline" className="bg-blue-500/10 text-blue-400 border-blue-500/20">Research Question</Badge>
-                  <Badge variant="outline" className="bg-purple-500/10 text-purple-400 border-purple-500/20">Scope Boundaries</Badge>
-                  <Badge variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20">SMART Objectives</Badge>
+              <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl p-6 md:p-8 flex flex-col gap-6 text-left mb-8 w-full shadow-xl">
+                <div className="flex items-center justify-between border-b border-[#333] pb-3">
+                  <h3 className="text-white font-semibold text-xl flex items-center gap-2">
+                    <Check size={20} className="text-green-500" />
+                    Saved Phase 1 Data
+                  </h3>
+                  {!isEditingData ? (
+                    <Button onClick={handleEditClick} variant="outline" size="sm" className="bg-transparent border-[#333] text-white hover:bg-[#222]">
+                      <Edit2 size={14} className="mr-2" /> Edit Details
+                    </Button>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Button onClick={() => setIsEditingData(false)} variant="outline" size="sm" className="bg-transparent border-[#333] text-white hover:bg-[#222]">
+                        <CloseIcon size={14} className="mr-2" /> Cancel
+                      </Button>
+                      <Button onClick={handleSaveChanges} size="sm" className="bg-green-600 hover:bg-green-700 text-white">
+                        <Save size={14} className="mr-2" /> Save Changes
+                      </Button>
+                    </div>
+                  )}
                 </div>
-                <p className="text-xs text-[#666] mt-2">UUIDs: {finalResult.knowledge_graph_nodes.join(", ")}</p>
+                
+                {problem && (
+                  <div>
+                    <h4 className="text-orange-400 font-medium mb-2 text-sm uppercase tracking-wider">Problem Statement</h4>
+                    {isEditingData ? (
+                      <Textarea value={editForm.problem} onChange={e => setEditForm({...editForm, problem: e.target.value})} className="bg-[#0d0d0d] border-[#333] text-white min-h-[100px]" />
+                    ) : (
+                      <p className="text-[#d4d4d4] text-sm leading-relaxed bg-[#0d0d0d] p-4 rounded-xl border border-[#222]">
+                        {problem.statement || problem}
+                      </p>
+                    )}
+                  </div>
+                )}
+                
+                {questionData && (
+                  <div>
+                    <h4 className="text-blue-400 font-medium mb-2 text-sm uppercase tracking-wider">Research Question</h4>
+                    {isEditingData ? (
+                      <Textarea value={editForm.question} onChange={e => setEditForm({...editForm, question: e.target.value})} className="bg-[#0d0d0d] border-[#333] text-white" />
+                    ) : (
+                      <p className="text-[#d4d4d4] text-sm leading-relaxed bg-[#0d0d0d] p-4 rounded-xl border border-[#222]">
+                        {questionData.version || questionData.question || questionData}
+                      </p>
+                    )}
+                  </div>
+                )}
+                
+                {scope && (
+                  <div>
+                    <h4 className="text-purple-400 font-medium mb-2 text-sm uppercase tracking-wider">Scope Boundaries</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="bg-[#0d0d0d] p-4 rounded-xl border border-[#222] flex flex-col">
+                        <strong className="text-white text-sm block mb-2">Inclusions (one per line)</strong>
+                        {isEditingData ? (
+                          <Textarea value={editForm.inclusions} onChange={e => setEditForm({...editForm, inclusions: e.target.value})} className="bg-[#1a1a1a] border-[#333] text-white flex-1 min-h-[100px]" />
+                        ) : (
+                          <ul className="list-disc pl-4 text-sm text-[#a0aec0] space-y-1">
+                            {scope.inclusions?.map((inc: any, i: number) => (
+                              <li key={i}>{inc.item || inc}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                      <div className="bg-[#0d0d0d] p-4 rounded-xl border border-[#222] flex flex-col">
+                        <strong className="text-white text-sm block mb-2">Exclusions (one per line)</strong>
+                        {isEditingData ? (
+                          <Textarea value={editForm.exclusions} onChange={e => setEditForm({...editForm, exclusions: e.target.value})} className="bg-[#1a1a1a] border-[#333] text-white flex-1 min-h-[100px]" />
+                        ) : (
+                          <ul className="list-disc pl-4 text-sm text-[#a0aec0] space-y-1">
+                            {scope.exclusions?.map((exc: any, i: number) => (
+                              <li key={i}>{exc.item || exc}</li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {objectives && (
+                  <div>
+                    <h4 className="text-emerald-400 font-medium mb-2 text-sm uppercase tracking-wider">SMART Objectives</h4>
+                    {isEditingData ? (
+                      <Textarea value={editForm.objectives} onChange={e => setEditForm({...editForm, objectives: e.target.value})} className="bg-[#0d0d0d] border-[#333] text-white min-h-[150px]" placeholder="Separate objectives with a blank line" />
+                    ) : (
+                      <ul className="space-y-3">
+                        {Array.isArray(objectives) ? objectives.map((obj: any, i: number) => (
+                          <li key={i} className="bg-[#0d0d0d] p-4 rounded-xl border border-[#222] text-sm text-[#d4d4d4]">
+                            <strong className="text-white block mb-1">Objective {i + 1}</strong>
+                            {obj.objective || obj.smart_objective || obj}
+                          </li>
+                        )) : (
+                          <li className="bg-[#0d0d0d] p-4 rounded-xl border border-[#222] text-sm text-[#d4d4d4]">
+                            <strong className="text-white block mb-1">Objective 1</strong>
+                            {objectives.smart_objective || objectives.objective || (typeof objectives === "string" ? objectives : JSON.stringify(objectives))}
+                          </li>
+                        )}
+                      </ul>
+                    )}
+                  </div>
+                )}
               </div>
 
-              <Button className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-6 text-lg rounded-xl">
-                Proceed to Phase 2: Literature Review <ChevronRight className="ml-2" />
-              </Button>
+              {!isEditingData && (
+                <div className="flex justify-center gap-4">
+                  <Button 
+                    onClick={() => {
+                      setCurrentStep(0);
+                      setFinalResult(null);
+                    }}
+                    variant="outline"
+                    className="bg-transparent border-[#333] hover:bg-[#1a1a1a] text-white px-8 py-6 text-lg rounded-xl"
+                  >
+                    Start AI Wizard Over
+                  </Button>
+                  <Button 
+                    onClick={onProceedToPhase2}
+                    className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-6 text-lg rounded-xl"
+                  >
+                    Proceed to Phase 2: Literature Review <ChevronRight className="ml-2" />
+                  </Button>
+                </div>
+              )}
             </motion.div>
           )}
 

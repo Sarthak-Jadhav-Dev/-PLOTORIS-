@@ -49,16 +49,23 @@ export default function PdfUploader({ projectId, onUploadComplete }: { projectId
         body: formData,
       });
       
-      if (!res.ok) throw new Error("Upload failed");
+      if (!res.ok) {
+        let errorMsg = "Upload failed";
+        try {
+          const errorData = await res.json();
+          if (errorData.error) errorMsg = errorData.error;
+        } catch(e) {}
+        throw new Error(errorMsg);
+      }
       
       const data = await res.json();
       
       setUploadState("success");
       setStatusMessage("Paper successfully processed and embedded.");
       setTimeout(() => onUploadComplete(data.paper), 2000);
-    } catch (err) {
+    } catch (err: any) {
       setUploadState("error");
-      setStatusMessage("Failed to process the PDF. Check your OpenAI API key.");
+      setStatusMessage(err.message || "Failed to process the PDF.");
     }
   };
 

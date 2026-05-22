@@ -37,13 +37,19 @@ interface JuryRound {
 // ──────────────────────────────────────────────────────────────────────────────
 
 const IEEE_RULES = `
-CRITICAL FORMATTING RULES:
-1. Maintain a highly professional, humanized academic tone. Do NOT sound robotic.
-2. Do NOT use Markdown (** or _). Use plain prose only.
-3. Include inline IEEE citations [1], [2], [3-5] where appropriate.
-4. Output ONLY the section body — NO heading HTML, NO JSON, NO code blocks.
-5. Every factual claim must be grounded in the project context provided.
-6. Use precise statistical language: effect sizes (Cohen's d, β), p-values, confidence intervals.
+CRITICAL IEEE JOURNAL FORMATTING & WRITING RULES:
+
+1. FONT & TYPOGRAPHY: All body text is 10pt, Times New Roman. Justified alignment. Single-spaced. No line gaps between sentences within a paragraph.
+2. TONE: Strictly formal IEEE journal tone. Passive voice predominates. High technical vocabulary. Dense academic paragraphs. Absolutely NO conversational language, marketing language, or colloquialisms.
+3. MARKDOWN FORBIDDEN: Do NOT use ** or _ for bold/italics. Do NOT output code blocks or JSON. Output ONLY raw paragraph text.
+4. CITATIONS: Use IEEE numeric inline citations [1], [2], [3]–[5] wherever factual claims, algorithms, or prior work are referenced. Every paragraph should contain at least one citation.
+5. FACTUAL GROUNDING: Every factual claim, statistic, algorithm name, benchmark result, or architectural detail MUST be derived from or consistent with the project context provided.
+6. TECHNICAL DEPTH: Reference specific algorithm names, time complexity (e.g., O(n log n)), API endpoints, module names, framework versions, and evaluation metrics (precision, recall, F1, latency in ms, throughput in req/s, BLEU score, RMSE, etc.).
+7. SECTION BODY ONLY: Output ONLY the body text of the section — no section headings, no HTML tags, no JSON, no code fences.
+8. STATISTICAL RIGOR: Use effect sizes (Cohen's d, β coefficients), p-values (e.g., p < 0.001), confidence intervals (95% CI), and sample sizes (n = X) where relevant.
+9. SUBHEADINGS: When a section needs sub-divisions, format them as "A. Subheading Title" or "B. Another Subheading" on their own line. Use alphabetical lettering. Bold style. Title Case.
+10. ACADEMIC TRANSITIONS: Use formal transitional phrases: "Furthermore,", "In contrast,", "Consequently,", "It is evident that", "The aforementioned", "It is noteworthy that", "Empirical results corroborate...".
+11. FIGURES/TABLES placeholders: When referencing a figure or table write inline: [FIGURE: descriptive caption] or [TABLE: descriptive caption with column names].
 `;
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -54,38 +60,70 @@ const SECTIONS = [
   {
     key: "abstract",
     heading: "Abstract",
-    wordCount: "200-250",
-    instructions: "Summarize the research problem, methodology, key findings (cite specific statistics), and implications. Self-contained.",
+    wordCount: "450-650",
+    instructions: `Write a single, dense, unbroken paragraph (NO line breaks, NO sub-headings). The abstract MUST begin with the exact inline label 'Abstract —' (do not wrap this in a tag — just start the text with it). Italicize the entire abstract body in the final HTML. Include ALL of the following in sequence: (1) problem context and motivation with domain statistics; (2) proposed system/framework name and its high-level purpose; (3) core algorithms and architectural components used; (4) system architecture description (layers/modules); (5) benchmark datasets or evaluation settings; (6) quantitative results (accuracy %, latency ms, F1 score, throughput, etc.); (7) a strong contribution statement. 450-650 words. Dense, highly technical language. No citations in the abstract.`,
+  },
+  {
+    key: "keywords",
+    heading: "Keywords",
+    wordCount: "8-15 keywords",
+    instructions: `Generate exactly 8 to 15 highly technical, domain-specific keywords relevant to the research. Output ONLY the keywords as a comma-separated list. Start with the inline label 'Keywords —' (do not wrap in a tag). Italicize the whole line in the final HTML. Example: Keywords — deep learning, transformer architecture, semantic segmentation, real-time inference...`,
   },
   {
     key: "introduction",
     heading: "I. INTRODUCTION",
-    wordCount: "500-600",
-    instructions: "Establish the real-world significance of the problem. Review the knowledge gap. State the study's specific contribution and outline the paper structure.",
+    wordCount: "700-1000",
+    instructions: `Write a comprehensive IEEE introduction with the following sub-structure:
+A. Background and Motivation — Establish real-world significance with quantitative evidence and references [1]-[3].
+B. Problem Statement — Define the specific technical gap or limitation in current approaches.
+C. Proposed Approach — Summarise the key innovations of the proposed system with technical specificity.
+D. Contributions — List 3-5 numbered technical contributions of this work.
+E. Paper Organization — End with 'The remainder of this paper is organized as follows...' sentence describing each section.
+700-1000 words total.`,
   },
   {
     key: "literatureReview",
-    heading: "II. LITERATURE REVIEW",
-    wordCount: "600-750",
-    instructions: "Synthesize prior work thematically. Cite using [1], [2]. Show evolution of thinking. Explicitly identify the gap this study fills.",
+    heading: "II. RELATED WORK",
+    wordCount: "900-1300",
+    instructions: `Synthesize prior academic work thematically in 900-1300 words. Organize with clear sub-sections (A, B, C...) by topic cluster. Each sub-section must cite 3-5 prior works [N]. For each cited work describe: what it proposed, its methodology, its limitations, and how it differs from the current study. End with a synthesis paragraph explaining the collective gap and how this paper fills it. Use academic language: 'seminal work', 'extant literature', 'notwithstanding these advances', 'heretofore unexplored'.`,
   },
   {
     key: "methodology",
     heading: "III. METHODOLOGY",
-    wordCount: "500-600",
-    instructions: "Detail the research design, sampling strategy, data collection instruments, and analysis approach. Justify every methodological choice.",
+    wordCount: "1200-1800",
+    instructions: `Write a detailed, technically rigorous methodology section in 1200-1800 words. Structure with sub-sections:
+A. System Architecture Overview — Describe the end-to-end layered architecture. Reference a [FIGURE: System Architecture Diagram] placeholder.
+B. Data Collection and Preprocessing — Detail data sources, preprocessing pipeline, normalization, feature engineering.
+C. Algorithm Design — Explain each algorithm in depth. Include complexity analysis (time and space). Reference pseudocode or equations.
+D. Module Implementation — Describe APIs, SDKs, libraries, and software modules used. Mention specific versions.
+E. Training and Optimization — Explain training procedures, loss functions, hyperparameter settings, optimizers.
+F. Evaluation Framework — Describe evaluation metrics, cross-validation strategy, and test setup.
+Use passive voice. Include equations described in text (e.g., 'The loss function L is defined as the mean squared error between...'). Mention specific complexity notations.`,
   },
   {
     key: "results",
     heading: "IV. RESULTS AND DISCUSSION",
-    wordCount: "800-1000",
-    instructions: "Present findings with specific statistics from the context (p-values, β, CIs, n). Discuss implications. Where data supports it, write [TABLE: description] or [FIGURE: description] placeholders. Compare with prior literature.",
+    wordCount: "700-1200",
+    instructions: `Write a quantitative results section in 700-1200 words. Structure as:
+A. Experimental Setup — Dataset sizes (n=X), hardware specs, training epochs, batch sizes.
+B. Quantitative Results — Report specific metrics: accuracy, precision, recall, F1 score, RMSE, latency (ms), throughput (req/s), BLEU scores etc. Include a [TABLE: Comparative Performance Results - columns: Method, Accuracy, F1, Latency(ms), Parameters].
+C. Comparative Analysis — Compare against at least 3 baseline methods citing prior work [N]. Use relative improvement language: 'a relative improvement of X% over the next best baseline'.
+D. Ablation Study — Analyze contribution of individual components to overall performance.
+E. Discussion — Interpret results, discuss implications, address limitations of the experimental evaluation.
+All numbers must be realistic and consistent with context. Use strong quantitative language.`,
   },
   {
     key: "conclusion",
-    heading: "V. CONCLUSION",
-    wordCount: "300-380",
-    instructions: "Summarize key contributions, acknowledge limitations, suggest specific future directions. No new findings.",
+    heading: "V. CONCLUSION AND FUTURE WORK",
+    wordCount: "250-400",
+    instructions: `Write a conclusive section in 250-400 words:
+1. Restate the core research problem and why it matters (1-2 sentences).
+2. Summarize the proposed system and its key technical innovations.
+3. State the most important empirical results as evidence of the contribution.
+4. Acknowledge specific limitations of this study.
+5. Describe concrete future research directions (3-4 specific directions with technical detail).
+6. End with a strong statement of academic significance: e.g., 'This work establishes a foundation for...'
+No new findings. No citations. Formal concluding tone.`,
   },
 ];
 
@@ -100,16 +138,27 @@ async function draftSection(
   req: Request
 ): Promise<string> {
 
-  const systemPrompt = `You are an expert academic researcher and scientific writer.
-You are drafting the "${sectionConfig.heading}" section of a research paper in IEEE format.
-${IEEE_RULES}
-Section instructions: ${sectionConfig.instructions}
-Target word count: ~${sectionConfig.wordCount} words.
-${priorFeedback ? `\nPRIOR JURY FEEDBACK TO ADDRESS:\n${priorFeedback}\n` : ""}`;
+  const systemPrompt = `You are a senior IEEE journal author and academic writing expert. You write at the level of papers published in IEEE Transactions or top ACM/USENIX venues.
 
-  const userMessage = `Using the project context below, draft the "${sectionConfig.heading}" section.
-Be specific — reference the actual variables, statistics, hypotheses, and literature in the context.
-Do NOT be generic.
+You are now drafting the "${sectionConfig.heading}" section of a full research paper.
+
+${IEEE_RULES}
+
+SECTION-SPECIFIC INSTRUCTIONS:
+${sectionConfig.instructions}
+
+TARGET WORD COUNT: ${sectionConfig.wordCount} words. Do NOT produce less than the minimum.
+
+${priorFeedback ? `PEER REVIEW FEEDBACK FROM PRIOR DRAFT (MANDATORY TO ADDRESS):\n${priorFeedback}\n` : ""}
+
+CRITICAL REMINDERS:
+- Output ONLY the body text of this section. No headings. No HTML. No JSON. No markdown.
+- Write long, dense, scholarly paragraphs. Avoid short paragraphs.
+- Every technical claim needs a citation [N].
+- Generate realistic technical terminology, algorithm names, API names, module names, and benchmarks that are consistent with the project context.
+- The writing must be indistinguishable from a real IEEE journal paper.`;
+
+  const userMessage = `Draft the "${sectionConfig.heading}" section NOW, using the following project context as your primary source of truth. Be highly specific — reference the actual variables, hypotheses, algorithms, data sources, and statistics present in the context. Do NOT produce generic filler text.
 
 PROJECT CONTEXT:
 ${context}`;
@@ -143,25 +192,34 @@ async function runJuror(
 ): Promise<JurorResult> {
   const model = getLLM(req, 0.2, "gemini-2.0-flash", 250);
 
-  const systemPrompt = `You are ${jurorName}, a senior academic peer reviewer specializing in ${jurorRole}.
-You are evaluating the "${sectionName}" section of a research paper.
-Score the section on your domain (1-10) and provide specific, actionable feedback.
+  const systemPrompt = `You are ${jurorName}, a senior IEEE peer reviewer specializing in ${jurorRole}.
+You are conducting a rigorous peer review of the "${sectionName}" section of a research paper targeting an IEEE Transactions journal.
 
-Return ONLY raw JSON (no markdown):
+Evaluate this section strictly against these IEEE standards:
+- Technical depth and specificity (no vague or generic statements)
+- Correct IEEE citation usage [N] throughout
+- Appropriate word count and density for the section type
+- Formal academic language and passive voice
+- Quantitative evidence and statistical rigor
+- Logical flow and academic transitions
+
+Score on your domain (1-10), where: 9-10=accept as-is, 7-8=minor revision, 5-6=major revision, <5=reject.
+
+Return ONLY raw JSON (no markdown blocks):
 {
   "jurorName": "${jurorName}",
-  "score": number (1-10, where 7+ is publish-ready),
-  "comments": "2-3 sentences of specific, constructive feedback referencing exact issues in the text.",
-  "mustFix": ["Specific fix 1", "Specific fix 2"] // only items that would prevent publication
+  "score": <number 1-10>,
+  "comments": "2-3 sentences of highly specific, actionable feedback citing exact phrases or issues from the text.",
+  "mustFix": ["Specific mandatory fix 1 with detail", "Specific mandatory fix 2 with detail"]
 }`;
 
-  const userMessage = `Evaluate this "${sectionName}" section:
+  const userMessage = `Review this "${sectionName}" section for IEEE journal standards:
 
-${sectionContent}
+${sectionContent.substring(0, 1200)}
 
 ---
-Project Context (for grounding your evaluation):
-${context.substring(0, 1500)}`;
+Project Context (ground truth for factual verification):
+${context.substring(0, 800)}`;
 
   try {
     const response = await model.invoke([
@@ -235,62 +293,67 @@ async function visualArchitect(
 ): Promise<string> {
   const model = getLLM(req, 0.4, "gemini-2.0-flash", 1000);
 
-  const systemPrompt = `You are a Visual Architect agent for academic papers.
-Based on the project context and paper sections, generate visual elements to enrich the paper.
-Generate exactly 3 visual elements:
-1. A Mermaid flowchart showing the Research Methodology Pipeline
-2. An HTML table showing Results Comparison (groups, conditions, means, SDs, p-values based on context)
-3. A Mermaid graph showing the Conceptual Framework (IV → mediators/moderators → DV)
+  const systemPrompt = `You are a Visual Architect agent for IEEE academic papers.
+Your task is to generate IEEE-compliant visual elements (figures and tables) to enrich the paper.
 
-Return ONLY raw JSON (no markdown wrapping):
+Generate exactly 3 visual elements:
+1. A Mermaid flowchart titled "Figure 1:" showing the complete System Architecture or Methodology Pipeline (layered, technical, with module/component names from the context)
+2. An IEEE-style HTML results table titled "TABLE I." showing Comparative Performance Results across methods/baselines. Include columns: Method, Accuracy (%), Precision, Recall, F1-Score, Latency (ms). Use realistic numbers consistent with the context.
+3. A Mermaid graph titled "Figure 2:" showing the Conceptual Framework / Theoretical Model (IV → Mediators → DV) or the Data Flow Diagram, using domain-specific node names from the context.
+
+Return ONLY raw JSON (no markdown wrapping, no code fences):
 {
+  "title": "<Generated IEEE Paper Title in format: SystemName: Technical Purpose Using Algorithms/Tech>",
   "visuals": [
     {
       "id": "fig1",
-      "title": "Figure 1: Research Methodology Pipeline",
+      "title": "Figure 1: System Architecture of the Proposed Framework",
       "type": "mermaid",
-      "caption": "Overview of the research methodology used in this study.",
-      "code": "flowchart TD\n  A[Research Problem] --> B[Literature Review]..."
+      "caption": "End-to-end architecture of the proposed system illustrating the data flow from input acquisition through algorithmic processing to output generation.",
+      "code": "flowchart TD\n  A[\"Data Ingestion Module\"] --> B[\"Preprocessing Pipeline\"]..."
     },
     {
       "id": "table1",
-      "title": "Table 1: Summary of Results",
+      "title": "TABLE I. COMPARATIVE PERFORMANCE EVALUATION",
       "type": "html_table",
-      "caption": "Comparison of key outcome measures across study conditions.",
-      "html": "<table>...</table>"
+      "caption": "Quantitative comparison of the proposed method against state-of-the-art baselines across standard benchmark metrics.",
+      "html": "<table border='1' style='border-collapse:collapse;width:100%;font-family:Times New Roman;font-size:9pt;'>...</table>"
     },
     {
       "id": "fig2",
-      "title": "Figure 2: Conceptual Framework",
+      "title": "Figure 2: Conceptual Research Framework",
       "type": "mermaid",
-      "caption": "Theoretical model underpinning the study.",
-      "code": "graph LR\n  IV[Independent Variable] --> DV[Dependent Variable]..."
+      "caption": "Theoretical model depicting the directional relationships among the independent, mediating, and dependent variables investigated in this study.",
+      "code": "graph LR\n  IV[\"Independent Variable\"] --> M[\"Mediator\"]\n  M --> DV[\"Dependent Variable\"]..."
     }
   ]
 }
 
 MERMAID RULES:
-- Use valid Mermaid syntax only
-- Quote node labels with special characters: A["Label (Detail)"]
-- Keep diagrams clean and readable
-- For flowchart: use TD (top-down) or LR (left-right)
+- Valid Mermaid syntax only. Quote ALL node labels containing spaces or parentheses: A["Label (Detail)"]
+- Flowcharts: use 'flowchart TD' for top-down architecture diagrams
+- Graphs: use 'graph LR' for conceptual/relationship models
+- Use domain-specific, technical labels from the project context
+- Keep diagrams clean — maximum 10-12 nodes
 
 HTML TABLE RULES:
-- Use proper <table>, <thead>, <tbody>, <tr>, <th>, <td> tags
-- Add style="border-collapse: collapse; width: 100%; font-family: Times New Roman; font-size: 10pt;"
-- Add border="1" to the table element
-- Extract or infer realistic values from the context`;
+- Full proper HTML: <table>, <thead>, <tbody>, <tr>, <th>, <td> tags
+- table: border='1' style='border-collapse:collapse;width:100%;font-family:Times New Roman;font-size:9pt;'
+- th: style='background:#f0f0f0;padding:4pt 8pt;text-align:center;font-weight:bold;'
+- td: style='padding:4pt 8pt;text-align:center;'
+- Use realistic, specific numeric values inferred from the context
+- Include a row for the proposed method showing best performance (bold that row)`;  
 
-  const userMessage = `Generate visuals for a research paper based on:
+  const userMessage = `Generate IEEE-compliant visuals and the paper title for a research paper. Use highly domain-specific and technical terminology.
 
 PROJECT CONTEXT:
 ${context.substring(0, 2000)}
 
-METHODOLOGY SECTION:
-${methodologySection.substring(0, 800)}
+METHODOLOGY SECTION EXCERPT:
+${methodologySection.substring(0, 600)}
 
-RESULTS SECTION:
-${resultsSection.substring(0, 1000)}`;
+RESULTS SECTION EXCERPT:
+${resultsSection.substring(0, 700)}`;
 
   try {
     const response = await model.invoke([
@@ -305,29 +368,35 @@ ${resultsSection.substring(0, 1000)}`;
 
     const parsed = JSON.parse(jsonMatch[0]);
     const visuals = parsed.visuals || [];
+    const generatedTitle = parsed.title || "";
 
-    // Convert to HTML for embedding in the paper
-    let html = `<h2 style="text-align:center; font-size:14pt; text-transform:uppercase; margin-top:18pt;">FIGURES AND TABLES</h2>`;
+    // Convert to IEEE-styled HTML for embedding in the paper
+    let html = `<div style="column-span:all;margin:18pt 0 12pt 0;">`;
+    html += `<h2 style="font-family:'Times New Roman',serif;font-size:10pt;font-weight:bold;text-align:center;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 8pt 0;">Figures and Tables</h2>`;
+    html += `</div>`;
 
     for (const v of visuals) {
-      html += `<div style="margin: 20pt 0; page-break-inside: avoid; column-span: all;">`;
-      html += `<p style="text-align:center; font-weight:bold; font-size:10pt;">${v.title}</p>`;
+      const isTable = v.type === "html_table";
+      html += `<div style="margin:16pt 0;page-break-inside:avoid;column-span:all;font-family:'Times New Roman',serif;">`;
 
-      if (v.type === "mermaid") {
-        // Embed mermaid as a pre block with class — the editor renders it
-        html += `<pre class="mermaid" style="background: #f9f9f9; border: 1px solid #ddd; padding: 12px; font-size: 9pt; overflow-x: auto;">${v.code}</pre>`;
-      } else if (v.type === "html_table") {
+      if (isTable) {
+        // IEEE: Table caption goes ABOVE the table
+        html += `<p style="text-align:center;font-size:9pt;font-weight:bold;font-family:'Times New Roman',serif;margin:0 0 4pt 0;">${v.title}</p>`;
+        html += `<p style="text-align:center;font-size:8pt;font-style:italic;font-family:'Times New Roman',serif;margin:0 0 6pt 0;">${v.caption}</p>`;
         html += v.html;
+      } else if (v.type === "mermaid") {
+        // IEEE: Figure caption goes BELOW the figure
+        html += `<pre class="mermaid" style="background:#fafafa;border:1px solid #ccc;padding:10px;font-size:8pt;overflow-x:auto;font-family:monospace;">${v.code}</pre>`;
+        html += `<p style="text-align:center;font-size:9pt;font-family:'Times New Roman',serif;margin:4pt 0 0 0;"><strong>${v.title}</strong> — <em>${v.caption}</em></p>`;
       }
 
-      html += `<p style="text-align:center; font-style:italic; font-size:9pt; margin-top:6pt;">${v.caption}</p>`;
       html += `</div>`;
     }
 
-    return html;
+    return JSON.stringify({ html, generatedTitle });
   } catch (e) {
     console.warn("Visual Architect failed:", e);
-    return "";
+    return JSON.stringify({ html: "", generatedTitle: "" });
   }
 }
 
@@ -338,18 +407,23 @@ ${resultsSection.substring(0, 1000)}`;
 async function draftReferences(context: string, req: Request): Promise<string> {
   const model = getLLM(req, 0.3, "gemini-1.5-pro", 1000);
 
-  const prompt = `You are an expert academic researcher. Generate the References section for a research paper.
-Based on the literature in the context, format all references in strict IEEE format.
-If the provided literature is less than 15 items, supplement with realistic, highly relevant academic references to reach at least 15 total.
-Format: [N] Author(s), "Title," Journal/Conference, vol. X, no. Y, pp. ZZ-ZZ, Year. DOI.
-Output ONLY the reference list items, each wrapped in a <p> tag. No heading.
+  const prompt = `You are a senior IEEE journal author generating the References section of a research paper.
 
-Context:
+Formatting requirements (strict IEEE numeric format):
+- Each reference is numbered [1], [2], [3]... in square brackets
+- Format: [N] A. Lastname, B. Lastname, and C. Lastname, "Title of Paper in Title Case," in Proc. IEEE Conf. Name / IEEE Trans. Journal Name, vol. X, no. Y, pp. ZZ–ZZ, Mon. YYYY. doi: 10.XXXX/XXXX.
+- For books: [N] A. Lastname, Title of Book, Xth ed. City, Country: Publisher, YYYY, pp. ZZ–ZZ.
+- List ALL references from the project context.
+- If fewer than 15 references are available, supplement with realistic, highly relevant IEEE-style references relevant to the research domain.
+- Minimum 15, target 20 references.
+- Output ONLY the reference list. Each reference wrapped in a <p style="font-family:'Times New Roman',serif;font-size:9pt;margin:0 0 4pt 0;text-indent:-18pt;padding-left:18pt;"> tag. No heading. No preamble.
+
+Project Context (extract references from here):
 ${context.substring(0, 3000)}`;
 
   const response = await model.invoke([new SystemMessage(prompt)]);
   let content = typeof response.content === "string" ? response.content : "";
-  return content.replace(/\*\*/g, "").trim();
+  return content.replace(/\*\*/g, "").replace(/```/g, "").trim();
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -464,34 +538,74 @@ export async function POST(request: Request) {
 
     // ── Step 4: Visual Architect ────────────────────────────────────────────
     console.log("[Phase9] Running Visual Architect...");
-    const visualsHtml = await visualArchitect(
+    const visualsRaw = await visualArchitect(
       richContext,
       finalSections.results || "",
       finalSections.methodology || "",
       request
     );
+    let visualsHtml = "";
+    let generatedTitle = "Research Paper Draft";
+    try {
+      const vParsed = JSON.parse(visualsRaw);
+      visualsHtml = vParsed.html || "";
+      if (vParsed.generatedTitle) generatedTitle = vParsed.generatedTitle;
+    } catch { /* silent */ }
 
-    // ── Step 5: Compile Final Paper ─────────────────────────────────────────
+    // ── Step 5: Compile Final IEEE Paper ────────────────────────────────────
+    const S = `font-family:'Times New Roman',serif`;
+
+    // IEEE-style section heading wrapper
+    const wrapHeading = (heading: string) =>
+      `<h2 style="${S};font-size:10pt;font-weight:bold;text-align:center;text-transform:uppercase;margin:14pt 0 4pt 0;">${heading}</h2>`;
+
+    // Body text wrapper — splits on double newlines to create paragraphs, handles sub-headings (A. ...) 
+    const wrapBody = (content: string) => {
+      return content
+        .split(/\n{2,}/)
+        .map(para => para.trim())
+        .filter(para => para.length > 0)
+        .map(para => {
+          // Detect sub-headings like "A. Title" or "B. Another Title"
+          if (/^[A-Z]\.\s+[A-Z]/.test(para)) {
+            return `<p style="${S};font-size:10pt;font-weight:bold;margin:8pt 0 2pt 0;">${para}</p>`;
+          }
+          return `<p style="${S};font-size:10pt;text-align:justify;margin:0 0 6pt 0;line-height:1.15;">${para.replace(/\n/g, " ")}</p>`;
+        })
+        .join("\n");
+    };
+
     const wrapSection = (heading: string, content: string) =>
-      `<h2>${heading}</h2>\n<p>${content.replace(/\n\n+/g, "</p><p>").replace(/\n/g, " ")}</p>`;
+      wrapHeading(heading) + "\n" + wrapBody(content);
+
+    // Abstract is special: inline "Abstract —" label, italicized
+    const abstractText = (finalSections.abstract || "").replace(/^Abstract\s*[—-]\s*/i, "");
+    const abstractHtml = `<p style="${S};font-size:10pt;text-align:justify;margin:0 0 6pt 0;line-height:1.15;"><strong><em>Abstract —</em></strong> <em>${abstractText.replace(/\n/g, " ")}</em></p>`;
+
+    // Keywords are special: inline "Keywords —" label, italicized
+    const keywordsText = (finalSections.keywords || "").replace(/^Keywords\s*[—-]\s*/i, "");
+    const keywordsHtml = keywordsText
+      ? `<p style="${S};font-size:10pt;text-align:justify;margin:0 0 10pt 0;"><em><strong>Keywords —</strong> ${keywordsText}</em></p>`
+      : "";
 
     const finalDraft = `
-<h1 style="text-align: center; font-size: 18pt; margin-bottom: 8pt; column-span: all;">
-  Research Paper Draft
-</h1>
-<p style="text-align: center; font-style: italic; font-size: 9pt; margin-bottom: 24pt; column-span: all;">
-  Generated by Plotoris Grand Jury AI Pipeline · ${new Date().toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" })}
-</p>
+<div style="column-span:all;margin-bottom:16pt;">
+  <h1 style="${S};font-size:22pt;font-weight:bold;text-align:center;text-transform:none;margin:0 0 6pt 0;line-height:1.2;">${generatedTitle}</h1>
+  <p style="${S};font-size:8pt;text-align:center;font-style:italic;margin:0 0 12pt 0;">Generated by Plotoris Grand Jury AI Pipeline · ${new Date().toLocaleDateString("en-GB", { year: "numeric", month: "long", day: "numeric" })}</p>
+  ${abstractHtml}
+  ${keywordsHtml}
+</div>
 
-${wrapSection("Abstract", finalSections.abstract || "")}
 ${wrapSection("I. INTRODUCTION", finalSections.introduction || "")}
-${wrapSection("II. LITERATURE REVIEW", finalSections.literatureReview || "")}
+${wrapSection("II. RELATED WORK", finalSections.literatureReview || "")}
 ${wrapSection("III. METHODOLOGY", finalSections.methodology || "")}
 ${visualsHtml}
 ${wrapSection("IV. RESULTS AND DISCUSSION", finalSections.results || "")}
-${wrapSection("V. CONCLUSION", finalSections.conclusion || "")}
-<h2>VI. REFERENCES</h2>
+${wrapSection("V. CONCLUSION AND FUTURE WORK", finalSections.conclusion || "")}
+${wrapHeading("VI. REFERENCES")}
+<div style="${S};font-size:9pt;">
 ${referencesContent}
+</div>
 `.trim();
 
     // ── Step 6: Store final paper as embedding ──────────────────────────────

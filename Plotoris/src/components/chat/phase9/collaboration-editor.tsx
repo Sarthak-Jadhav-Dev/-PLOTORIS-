@@ -25,199 +25,15 @@ interface CollaborationEditorProps {
   onToggleExpand: () => void;
 }
 
-// ─── IEEE Paginated View Component ───────────────────────────────────────────
-// Renders the HTML paper as multiple discrete A4-sized page cards.
-// Each page is a fixed-height (29.7cm) container with CSS column-count:2,
-// so the browser fills the LEFT column first, then the RIGHT, per real IEEE layout.
-function IEEEPaginatedView({ html }: { html: string }) {
-  const [pages, setPages] = useState<string[][]>([]);
-  const measureRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!html) return;
-
-    // Parse the HTML into individual block-level child nodes
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(`<div>${html}</div>`, 'text/html');
-    const children = Array.from(doc.body.firstElementChild?.children ?? []);
-
-    if (children.length === 0) return;
-
-    // A4 page inner height at 96dpi: 29.7cm - 4.4cm padding = 25.3cm ≈ 960px
-    // Two columns each ~9.5cm wide. Column height = page height = ~960px
-    // We'll stack children until the estimated height exceeds one column height,
-    // then start a new page.
-    const PAGE_HEIGHT_PX = 960; // approx pixels for printable column height
-    const COL_HEIGHT_PX = PAGE_HEIGHT_PX; // each column is the full page height
-
-    const pageGroups: string[][] = [];
-    let currentPage: string[] = [];
-    let currentColHeight = 0;
-    let currentCol = 0; // 0 = left col, 1 = right col
-
-    const estimateHeight = (el: Element): number => {
-      const tag = el.tagName.toLowerCase();
-      // Title/h1 spans both columns (always starts new page if too tall)
-      if (tag === 'div' && el.querySelector('h1')) return 100; // title block
-      if (tag === 'h1') return 70;
-      if (tag === 'h2') return 28;
-      if (tag === 'p') {
-        const textLen = (el.textContent || '').length;
-        // ~85 chars per line at 10pt Times New Roman in a single column
-        const lines = Math.max(1, Math.ceil(textLen / 85));
-        return lines * 14 + 6; // 14px per line + margin
-      }
-      if (tag === 'table') return 200;
-      if (tag === 'pre') return 180;
-      if (tag === 'div') {
-        // estimate based on children
-        return Array.from(el.children).reduce((s, c) => s + estimateHeight(c), 40);
-      }
-      return 20;
-    };
-
-    for (const child of children) {
-      const elHtml = child.outerHTML;
-      const tag = child.tagName.toLowerCase();
-      const isFullWidth = tag === 'h1' || 
-        (tag === 'div' && child.querySelector('h1')) ||
-        (tag === 'div' && (child.getAttribute('style') || '').includes('column-span'));
-      const h = estimateHeight(child);
-
-      if (isFullWidth) {
-        // Full-width elements go on their own new page (or start of page)
-        if (currentPage.length > 0 && currentColHeight > 50) {
-          pageGroups.push(currentPage);
-          currentPage = [];
-          currentColHeight = 0;
-          currentCol = 0;
-        }
-        currentPage.push(elHtml);
-        currentColHeight += h;
-        continue;
-      }
-
-      if (currentColHeight + h > COL_HEIGHT_PX) {
-        // Current column is full
-        if (currentCol === 0) {
-          // Move to right column
-          currentCol = 1;
-          currentColHeight = h;
-          currentPage.push(elHtml);
-        } else {
-          // Right column full — start a new page
-          pageGroups.push(currentPage);
-          currentPage = [elHtml];
-          currentColHeight = h;
-          currentCol = 0;
-        }
-      } else {
-        currentPage.push(elHtml);
-        currentColHeight += h;
-      }
-    }
-
-    if (currentPage.length > 0) pageGroups.push(currentPage);
-    setPages(pageGroups);
-  }, [html]);
-
-  if (pages.length === 0) {
-    return (
-      <div className="ieee-page flex items-center justify-center text-gray-400">
-        <Loader2 className="animate-spin w-8 h-8" />
-      </div>
-    );
-  }
-
-  return (
-    <>
-      {pages.map((pageChildren, i) => (
-        <div key={i} className="ieee-page border border-gray-300">
-          {/* Page number */}
-          <div style={{ position: 'absolute', bottom: '0.8cm', left: 0, right: 0, textAlign: 'center', fontSize: '8pt', fontFamily: 'Times New Roman, serif', color: '#666' }}>
-            {i + 1}
-          </div>
-          <div
-            className="ieee-page-inner"
-            dangerouslySetInnerHTML={{ __html: pageChildren.join('') }}
-          />
-        </div>
-      ))}
-    </>
-  );
-}
-
-// ─── Main Editor Component ────────────────────────────────────────────────────
-
-export function CollaborationEditor(props: CollaborationEditorProps) {
-  const { projectId } = props;
-  const [isReady, setIsReady] = useState(false);
-  
-  // Use refs to strictly guarantee single instantiation without state hooks
-  const ydocRef = useRef<Y.Doc | null>(null);
-  const providerRef = useRef<WebrtcProvider | null>(null);
-
-  useEffect(() => {
-    // 1. Initialize Y.Doc
-    if (!ydocRef.current) {
-      ydocRef.current = new Y.Doc();
-    }
-
-    // 2. Initialize WebRTC Provider
-    if (!providerRef.current) {
-      const roomName = `plotoris-ieee-draft-${projectId}`;
-      const signalingServers = [
-        'wss://signaling.yjs.dev',
-        'wss://y-webrtc-signaling-eu.herokuapp.com'
-      ];
-      
-      providerRef.current = new WebrtcProvider(roomName, ydocRef.current, { signaling: signalingServers });
-    }
-
-    setIsReady(true);
-
-    // 3. Cleanup securely for React Strict Mode
-    return () => {
-      if (providerRef.current) {
-        providerRef.current.destroy();
-        providerRef.current = null;
-      }
-      if (ydocRef.current) {
-        ydocRef.current.destroy();
-        ydocRef.current = null;
-      }
-      setIsReady(false);
-    };
-  }, [projectId]);
-
-  if (!isReady || !ydocRef.current || !providerRef.current) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-white text-gray-500">
-        <Loader2 className="w-8 h-8 animate-spin mb-4" />
-        <p>Connecting to secure WebRTC IEEE workspace...</p>
-      </div>
-    );
-  }
-
-  return <CollaborationEditorInner {...props} ydoc={ydocRef.current} provider={providerRef.current} />;
-}
-
-// ─── Inner Editor Component (Guaranteed Provider) ─────────────────────────────
-interface InnerProps extends CollaborationEditorProps {
-  ydoc: Y.Doc;
-  provider: WebrtcProvider;
-}
-
-function CollaborationEditorInner({ projectId, initialDraft, isExpanded, onToggleExpand, ydoc, provider }: InnerProps) {
+export function CollaborationEditor({ projectId, initialDraft, isExpanded, onToggleExpand }: CollaborationEditorProps) {
+  const [provider, setProvider] = useState<WebrtcProvider | null>(null);
   const [userName] = useState(getRandomName());
   const [userColor] = useState(getRandomColor());
   const [collaborators, setCollaborators] = useState<any[]>([]);
   const [isExporting, setIsExporting] = useState(false);
-  const [viewMode, setViewMode] = useState<'draft' | 'preview'>('draft');
-  const [editorHtml, setEditorHtml] = useState<string>('');
   const mermaidRef = useRef<typeof mermaid | null>(null);
 
-  // Initialize Mermaid on mount
+  // Initialize Mermaid on mount (dynamic import to avoid SSR issues)
   useEffect(() => {
     import('mermaid').then((m) => {
       m.default.initialize({
@@ -232,27 +48,30 @@ function CollaborationEditorInner({ projectId, initialDraft, isExpanded, onToggl
       console.warn('Mermaid not available');
     });
   }, []);
-
-  // Sync WebRTC Awareness (Canva Avatars)
+  
+  const ydoc = useMemo(() => new Y.Doc(), []);
+  
   useEffect(() => {
-    const updateAwareness = () => {
-      const states = Array.from(provider.awareness.getStates().values());
+    const roomName = `plotoris-ieee-draft-${projectId}`;
+    const webrtcProvider = new WebrtcProvider(roomName, ydoc, { signaling: ['wss://signaling.yjs.dev'] });
+    setProvider(webrtcProvider);
+
+    webrtcProvider.awareness.on('change', () => {
+      const states = Array.from(webrtcProvider.awareness.getStates().values());
+      // Filter out ourselves
       const others = states.filter(s => s.user && s.user.name !== userName);
       setCollaborators(others);
-    };
-
-    provider.awareness.on('change', updateAwareness);
-    updateAwareness(); // initial call
+    });
 
     return () => {
-      provider.awareness.off('change', updateAwareness);
+      webrtcProvider.destroy();
     };
-  }, [provider, userName]);
+  }, [projectId, ydoc, userName]);
 
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        history: false, // history is handled by Yjs natively
+        history: false,
       } as any),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       TextStyle,
@@ -260,14 +79,13 @@ function CollaborationEditorInner({ projectId, initialDraft, isExpanded, onToggl
       Collaboration.configure({
         document: ydoc,
       }),
-      // CollaborationCursor.configure({
-      //   provider: provider as any,
-      //   user: { name: userName, color: userColor },
-      // }),
+      ...(provider ? [
+        CollaborationCursor.configure({
+          provider: provider as any,
+          user: { name: userName, color: userColor },
+        })
+      ] : []),
     ],
-    onUpdate: ({ editor }) => {
-      setEditorHtml(editor.getHTML());
-    },
   });
 
   useEffect(() => {
@@ -275,51 +93,54 @@ function CollaborationEditorInner({ projectId, initialDraft, isExpanded, onToggl
       const currentText = editor.getText();
       if (currentText.trim() === '') {
         editor.commands.setContent(initialDraft);
-        setEditorHtml(initialDraft);
-      } else {
-        setEditorHtml(editor.getHTML());
       }
     }
   }, [editor, initialDraft]);
 
-  // Re-render Mermaid diagrams when html content changes
+  // Re-render Mermaid diagrams when draft content changes
   useEffect(() => {
-    if (!mermaidRef.current || !editorHtml) return;
+    if (!mermaidRef.current || !initialDraft) return;
+    // Small delay to let the editor DOM settle
     const timer = setTimeout(async () => {
       try {
         await mermaidRef.current!.run();
       } catch (e) {
+        // Mermaid render errors are non-fatal
         console.warn('Mermaid render warning:', e);
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [editorHtml, viewMode]);
+  }, [initialDraft]);
 
   const exportDocx = async () => {
     if (!editor) return;
     setIsExporting(true);
     try {
-      const rawHtml = editor.getHTML();
+      const html = editor.getHTML();
       const response = await fetch('/api/phase9/export-docx', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ html: rawHtml, projectId })
+        body: JSON.stringify({ html })
       });
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error || 'Export failed');
-      }
+      if (!response.ok) throw new Error('Export failed');
       const blob = await response.blob();
       saveAs(blob, `IEEE_Draft_${projectId}.docx`);
-    } catch (e: any) {
+    } catch (e) {
       console.error(e);
-      alert(`Failed to export DOCX: ${e.message}`);
+      alert("Failed to export DOCX");
     } finally {
       setIsExporting(false);
     }
   };
 
-  if (!editor) return null;
+  if (!editor || !provider) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center bg-white text-gray-500">
+        <Loader2 className="w-8 h-8 animate-spin mb-4" />
+        <p>Connecting to secure WebRTC IEEE workspace...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full h-full flex flex-col bg-[#e5e7eb] text-black overflow-hidden relative">
@@ -411,31 +232,11 @@ function CollaborationEditorInner({ projectId, initialDraft, isExpanded, onToggl
         
         {/* Ribbon Top Bar (File, Home, Insert...) & Canva Avatars */}
         <div className="flex items-center justify-between px-4 py-1 bg-white border-b border-gray-200 text-xs">
-          <div className="flex items-center space-x-6">
-            <div className="flex space-x-4">
-              <span className="font-semibold text-blue-600 border-b-2 border-blue-600 pb-1 cursor-pointer">Home</span>
-              <span className="text-gray-600 hover:text-black cursor-pointer pb-1">Insert</span>
-              <span className="text-gray-600 hover:text-black cursor-pointer pb-1">Layout</span>
-              <span className="text-gray-600 hover:text-black cursor-pointer pb-1">References</span>
-            </div>
-            
-            <div className="w-px h-4 bg-gray-300"></div>
-            
-            {/* View Mode Toggle */}
-            <div className="flex bg-gray-100 p-0.5 rounded-md border border-gray-200">
-              <button 
-                onClick={() => setViewMode('draft')}
-                className={`px-3 py-1 text-[11px] font-medium rounded-sm transition-colors ${viewMode === 'draft' ? 'bg-white shadow-sm text-black border border-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
-              >
-                📝 Draft Mode
-              </button>
-              <button 
-                onClick={() => setViewMode('preview')}
-                className={`px-3 py-1 text-[11px] font-medium rounded-sm transition-colors ${viewMode === 'preview' ? 'bg-white shadow-sm text-black border border-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
-              >
-                📄 Print Preview
-              </button>
-            </div>
+          <div className="flex space-x-4">
+            <span className="font-semibold text-blue-600 border-b-2 border-blue-600 pb-1 cursor-pointer">Home</span>
+            <span className="text-gray-600 hover:text-black cursor-pointer pb-1">Insert</span>
+            <span className="text-gray-600 hover:text-black cursor-pointer pb-1">Layout</span>
+            <span className="text-gray-600 hover:text-black cursor-pointer pb-1">References</span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -480,8 +281,8 @@ function CollaborationEditorInner({ projectId, initialDraft, isExpanded, onToggl
           </div>
         </div>
 
-        {/* Ribbon Tools (Disabled in Preview Mode) */}
-        <div className={`flex items-center px-4 py-2 gap-4 bg-[#f3f2f1] transition-opacity ${viewMode === 'preview' ? 'opacity-50 pointer-events-none' : ''}`}>
+        {/* Ribbon Tools */}
+        <div className="flex items-center px-4 py-2 gap-4 bg-[#f3f2f1]">
           {/* Font Group */}
           <div className="flex flex-col border-r border-gray-300 pr-4">
             <div className="flex items-center gap-1 mb-1">
@@ -525,145 +326,15 @@ function CollaborationEditorInner({ projectId, initialDraft, isExpanded, onToggl
         </div>
       </div>
       
-      {/* Editor Page Wrapper — paginated, each page is fixed A4 height with 2 columns */}
-      <div className="flex-1 overflow-y-auto py-8 flex flex-col items-center bg-[#f0f0f0] gap-6">
-        <style>{`
-          /* Each A4 page is a fixed-size box. Two-column CSS fills left col first, then right col. */
-          .ieee-page {
-            width: 21cm;
-            height: 29.7cm;
-            background: #fff;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.18);
-            box-sizing: border-box;
-            padding: 2.2cm 1.8cm;
-            overflow: hidden;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-          }
-          .ieee-page-inner {
-            flex: 1;
-            column-count: 2;
-            column-gap: 0.8cm;
-            column-rule: 1px solid #d1d5db;
-            column-fill: auto;
-            height: 100%;
-            overflow: hidden;
-          }
-          /* Title block spans both columns */
-          .ieee-page-inner .ieee-title-block {
-            column-span: all;
-            margin-bottom: 10pt;
-          }
-          .ieee-page-inner h1, .ieee-page-inner [style*='22pt'], .ieee-page-inner [style*='font-size:22'] {
-            column-span: all;
-            text-align: center;
-            font-size: 18pt !important;
-            font-weight: bold;
-            margin-bottom: 6pt;
-            font-family: 'Times New Roman', serif;
-            line-height: 1.2;
-          }
-          .ieee-page-inner h2 {
-            font-family: 'Times New Roman', serif;
-            font-size: 10pt;
-            font-weight: bold;
-            text-transform: uppercase;
-            text-align: center;
-            margin: 10pt 0 4pt 0;
-            break-before: avoid;
-          }
-          .ieee-page-inner p {
-            font-family: 'Times New Roman', serif;
-            font-size: 10pt;
-            text-align: justify;
-            margin: 0 0 5pt 0;
-            line-height: 1.2;
-          }
-          .ieee-page-inner em { font-style: italic; }
-          .ieee-page-inner strong { font-weight: bold; }
-          .ieee-page-inner table {
-            column-span: all;
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 8.5pt;
-            font-family: 'Times New Roman', serif;
-            margin: 8pt 0;
-          }
-          .ieee-page-inner th, .ieee-page-inner td {
-            border: 1px solid #555;
-            padding: 3pt 6pt;
-            text-align: center;
-          }
-          .ieee-page-inner th { background: #f0f0f0; font-weight: bold; }
-          .ieee-page-inner pre.mermaid {
-            column-span: all;
-            background: #fafafa;
-            border: 1px solid #ddd;
-            border-radius: 3px;
-            padding: 8pt;
-            font-size: 8pt;
-            overflow: hidden;
-          }
-          /* Draft Mode Editor Styling */
-          .draft-container {
-            width: 21cm;
-            min-height: 29.7cm;
-            background: #fff;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.18);
-            box-sizing: border-box;
-            padding: 2.5cm;
-            margin-bottom: 2cm;
-          }
-          .draft-container .ProseMirror {
-            outline: none;
-            min-height: 100%;
-            font-family: 'Times New Roman', serif;
-            font-size: 11pt;
-            line-height: 1.5;
-            text-align: justify;
-          }
-          .draft-container .ProseMirror h1 {
-            text-align: center;
-            font-size: 18pt !important;
-            font-weight: bold;
-            margin-bottom: 12pt;
-          }
-          .draft-container .ProseMirror h2 {
-            font-size: 11pt;
-            font-weight: bold;
-            text-transform: uppercase;
-            text-align: center;
-            margin: 14pt 0 6pt 0;
-          }
-          .draft-container .ProseMirror p {
-            margin: 0 0 8pt 0;
-            text-indent: 14pt;
-          }
-          .draft-container .ProseMirror table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 9pt;
-            margin: 12pt 0;
-          }
-          .draft-container .ProseMirror th, .draft-container .ProseMirror td {
-            border: 1px solid #555;
-            padding: 4pt 8pt;
-            text-align: center;
-          }
-          .draft-container .ProseMirror th { background: #f0f0f0; font-weight: bold; }
-          .draft-container .ProseMirror p.is-editor-empty:first-child::before { display: none; }
-        `}</style>
-
-        {viewMode === 'preview' ? (
-          /* Paginator view */
-          <IEEEPaginatedView html={editorHtml} />
-        ) : (
-          /* Live Editor */
-          <div className="draft-container">
-            <EditorContent editor={editor} />
-          </div>
-        )}
+      {/* Editor Page Wrapper */}
+      <div className="flex-1 overflow-y-auto py-8 flex justify-center bg-[#f0f0f0]">
+        {/* The Paper */}
+        <div className="paper-background border border-gray-300">
+          <EditorContent 
+            editor={editor} 
+            className="ieee-format w-full outline-none focus:outline-none" 
+          />
+        </div>
       </div>
     </div>
   );

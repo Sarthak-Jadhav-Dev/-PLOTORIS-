@@ -116,44 +116,33 @@ export default function ChatSidebar({
         }
     }, []);
 
-    // Enforce RBAC — load phase access from the real DB API
+    // Enforce RBAC
     useEffect(() => {
-        if (!activeProject?.id) return;
-
-        const token = localStorage.getItem("token");
-        if (!token) return;
-
-        // Decode current user ID from JWT
-        let currentUserId = "";
-        try {
-            const payload = JSON.parse(atob(token.split('.')[1]));
-            currentUserId = payload.id || "";
-        } catch { return; }
-
-        fetch(`/api/projects/${activeProject.id}/members`, {
-            headers: { Authorization: `Bearer ${token}` }
-        })
-            .then(res => res.json())
-            .then(data => {
-                if (!data.data) return;
-                const me = data.data.find((m: any) => m.user_id === currentUserId);
-                if (!me) {
-                    setAllowedPhases([]); // not a member — no access
-                    return;
-                }
-                if (me.role === "Owner" || me.role === "Admin") {
-                    setAllowedPhases("ALL");
+        if (activeProject?.id && userEmail) {
+            const storedTeam = localStorage.getItem(`plotoris_team_${activeProject.id}`);
+            if (storedTeam) {
+                const team = JSON.parse(storedTeam);
+                const me = team.find((m: any) => m.email === userEmail);
+                if (me) {
+                    if (me.role === "ADMIN") {
+                        setAllowedPhases("ALL");
+                    } else {
+                        setAllowedPhases(me.allowed_phases || []);
+                    }
                 } else {
-                    // Member: allowed_phases is an array like ["p1","p3"]
-                    setAllowedPhases(me.allowed_phases ?? []);
+                    // Edge case: if user accidentally saved the mock team (admin@plotoris.com)
+                    const hasMockAdmin = team.some((m: any) => m.email === "admin@plotoris.com" && m.role === "ADMIN");
+                    if (hasMockAdmin && team.length <= 2) {
+                        setAllowedPhases("ALL"); // Auto-recover from mock data bug
+                    } else {
+                        setAllowedPhases([]); // strict
+                    }
                 }
-            })
-            .catch(() => {
-                // Fallback to full access if network fails
-                setAllowedPhases("ALL");
-            });
-    }, [activeProject?.id, isOpen]);
-
+            } else {
+                setAllowedPhases("ALL"); // default open if not configured
+            }
+        }
+    }, [activeProject?.id, userEmail, isOpen]);
 
     return (
         <>

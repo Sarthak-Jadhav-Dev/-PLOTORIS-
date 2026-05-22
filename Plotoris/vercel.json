@@ -1,0 +1,31 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "installCommand": "npm install --legacy-peer-deps",
+  "functions": {
+    "src/app/api/phase9/draft/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/phase8/generate-section/route.ts": {
+      "maxDuration": 120
+    },
+    "src/app/api/phase8/consistency-check/route.ts": {
+      "maxDuration": 90
+    },
+    "src/app/api/phase7/interpret-results/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/phase7/verdict/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/phase5/quality-check/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/phase2/upload-paper/route.ts": {
+      "maxDuration": 60
+    },
+    "src/app/api/phase9/export-docx/route.ts": {
+      "maxDuration": 60
+    }
+  }
+}

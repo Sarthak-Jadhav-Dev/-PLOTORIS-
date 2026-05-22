@@ -24,9 +24,29 @@ export default function QuestionValidator({ projectId, problemContext, onQuestio
     setResult(null);
     
     try {
-      const geminiKey = projectId ? localStorage.getItem(`plotoris_gemini_key_${projectId}`) || "" : "";
+      // Use the standard provider-aware key forwarding (same pattern as all other phases)
+      const activeTextProvider = projectId
+        ? localStorage.getItem(`plotoris_active_text_provider_${projectId}`) || "gemini"
+        : "gemini";
+      const activeEmbeddingProvider = projectId
+        ? localStorage.getItem(`plotoris_active_embedding_provider_${projectId}`) || "gemini"
+        : "gemini";
+      const textKey = projectId
+        ? localStorage.getItem(`plotoris_${activeTextProvider}_key_${projectId}`) || ""
+        : "";
+      const embeddingKey = projectId
+        ? localStorage.getItem(`plotoris_${activeEmbeddingProvider}_key_${projectId}`) || ""
+        : "";
+
       const headers: any = { "Content-Type": "application/json" };
-      if (geminiKey) headers["x-gemini-key"] = geminiKey;
+      if (textKey) {
+        headers["x-api-key"] = textKey;
+        headers["x-api-provider"] = activeTextProvider;
+      }
+      if (embeddingKey) {
+        headers["x-embedding-key"] = embeddingKey;
+        headers["x-embedding-provider"] = activeEmbeddingProvider;
+      }
 
       const res = await fetch("/api/phase1/validate-question", {
         method: "POST",
@@ -34,6 +54,11 @@ export default function QuestionValidator({ projectId, problemContext, onQuestio
         body: JSON.stringify({ research_question: question, problem_context: problemContext?.statement, project_id: projectId })
       });
       const data = await res.json();
+      // Ensure grade always has a value even if the AI omits it
+      if (data && data.overall_score != null && !data.grade) {
+        const s = data.overall_score;
+        data.grade = s >= 90 ? "A+" : s >= 85 ? "A" : s >= 80 ? "A-" : s >= 75 ? "B+" : s >= 70 ? "B" : s >= 65 ? "B-" : s >= 60 ? "C+" : s >= 55 ? "C" : s >= 50 ? "C-" : "D";
+      }
       setResult(data);
     } catch (err) {
       console.error(err);
@@ -113,14 +138,17 @@ export default function QuestionValidator({ projectId, problemContext, onQuestio
           >
             {/* Score Card */}
             <div className="bg-[#1a1a1a] border border-[#333] rounded-2xl p-6 flex flex-col md:flex-row gap-8">
-              <div className="flex flex-col items-center justify-center min-w-[150px]">
-                <div className={`w-24 h-24 rounded-full border-4 flex items-center justify-center mb-2 ${
+              <div className="flex flex-col items-center justify-center min-w-[160px]">
+                <div className={`w-28 h-28 rounded-full border-4 flex flex-col items-center justify-center mb-3 ${
                   result.overall_score >= 80 ? 'border-green-500' : result.overall_score >= 60 ? 'border-orange-500' : 'border-red-500'
                 }`}>
-                  <span className="text-4xl font-bold text-white">{result.overall_score}</span>
+                  <span className={`text-3xl font-bold ${
+                    result.overall_score >= 80 ? 'text-green-400' : result.overall_score >= 60 ? 'text-orange-400' : 'text-red-400'
+                  }`}>{result.overall_score}</span>
+                  <span className="text-[10px] text-[#666] uppercase tracking-wider mt-0.5">/ 100</span>
                 </div>
-                <Badge variant="outline" className={getScoreColor(result.overall_score)}>
-                  Grade: {result.grade}
+                <Badge variant="outline" className={`text-sm font-bold px-4 py-1.5 ${getScoreColor(result.overall_score)}`}>
+                  Grade:&nbsp;<span className="text-white">{result.grade || "—"}</span>
                 </Badge>
               </div>
               

@@ -62,7 +62,7 @@ const graphState = {
 // Node: Parse PDF
 async function parsePdfNode(state: AgentState): Promise<Partial<AgentState>> {
   try {
-    const blob = new Blob([state.fileBuffer], { type: 'application/pdf' });
+    const blob = new Blob([state.fileBuffer as any], { type: 'application/pdf' });
     const loader = new PDFLoader(blob, { splitPages: false });
     const docs = await loader.load();
     

@@ -9,9 +9,10 @@ import { TextStyle } from '@tiptap/extension-text-style';
 import { Color } from '@tiptap/extension-color';
 import * as Y from 'yjs';
 import { WebrtcProvider } from 'y-webrtc';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { Loader2, Download, Maximize2, Minimize2, Bold, Italic, Strikethrough, AlignLeft, AlignCenter, AlignRight, AlignJustify, List, ListOrdered } from 'lucide-react';
 import { saveAs } from 'file-saver';
+import type mermaid from 'mermaid';
 
 const colors = ['#958DF1', '#F98181', '#FBBC88', '#FAF594', '#70CFF8', '#94FADB', '#B9F18D'];
 const getRandomColor = () => colors[Math.floor(Math.random() * colors.length)];
@@ -30,6 +31,23 @@ export function CollaborationEditor({ projectId, initialDraft, isExpanded, onTog
   const [userColor] = useState(getRandomColor());
   const [collaborators, setCollaborators] = useState<any[]>([]);
   const [isExporting, setIsExporting] = useState(false);
+  const mermaidRef = useRef<typeof mermaid | null>(null);
+
+  // Initialize Mermaid on mount (dynamic import to avoid SSR issues)
+  useEffect(() => {
+    import('mermaid').then((m) => {
+      m.default.initialize({
+        startOnLoad: false,
+        theme: 'neutral',
+        fontFamily: 'Times New Roman, serif',
+        fontSize: 12,
+        flowchart: { curve: 'basis', padding: 20 },
+      });
+      mermaidRef.current = m.default;
+    }).catch(() => {
+      console.warn('Mermaid not available');
+    });
+  }, []);
   
   const ydoc = useMemo(() => new Y.Doc(), []);
   
@@ -78,6 +96,21 @@ export function CollaborationEditor({ projectId, initialDraft, isExpanded, onTog
       }
     }
   }, [editor, initialDraft]);
+
+  // Re-render Mermaid diagrams when draft content changes
+  useEffect(() => {
+    if (!mermaidRef.current || !initialDraft) return;
+    // Small delay to let the editor DOM settle
+    const timer = setTimeout(async () => {
+      try {
+        await mermaidRef.current!.run();
+      } catch (e) {
+        // Mermaid render errors are non-fatal
+        console.warn('Mermaid render warning:', e);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [initialDraft]);
 
   const exportDocx = async () => {
     if (!editor) return;
@@ -129,15 +162,15 @@ export function CollaborationEditor({ projectId, initialDraft, isExpanded, onTog
         .ieee-format h1 {
           column-span: all;
           text-align: center;
-          font-size: 24pt;
-          margin-bottom: 24pt;
+          font-size: 18pt;
+          margin-bottom: 8pt;
           font-weight: bold;
         }
         .ieee-format h2 {
-          font-size: 14pt;
+          font-size: 11pt;
           text-transform: uppercase;
-          margin-top: 18pt;
-          margin-bottom: 6pt;
+          margin-top: 14pt;
+          margin-bottom: 5pt;
           font-weight: bold;
           text-align: center;
         }
@@ -145,7 +178,41 @@ export function CollaborationEditor({ projectId, initialDraft, isExpanded, onTog
           font-size: 10pt;
           text-align: justify;
           text-indent: 14pt;
-          margin-bottom: 10pt;
+          margin-bottom: 8pt;
+        }
+        .ieee-format table {
+          width: 100%;
+          border-collapse: collapse;
+          margin: 12pt 0;
+          font-size: 9pt;
+          column-span: all;
+          display: table;
+        }
+        .ieee-format th, .ieee-format td {
+          border: 1px solid #666;
+          padding: 4pt 8pt;
+          text-align: left;
+        }
+        .ieee-format th {
+          background: #f0f0f0;
+          font-weight: bold;
+        }
+        /* Mermaid diagrams */
+        .ieee-format pre.mermaid {
+          column-span: all;
+          background: #fafafa;
+          border: 1px solid #ddd;
+          border-radius: 4px;
+          padding: 12pt;
+          margin: 10pt 0;
+          font-family: monospace;
+          font-size: 9pt;
+          overflow-x: auto;
+          text-align: center;
+        }
+        .ieee-format pre.mermaid svg {
+          max-width: 100%;
+          height: auto;
         }
         /* A4 Page pattern background */
         .paper-background {

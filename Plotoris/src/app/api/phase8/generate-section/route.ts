@@ -1,30 +1,122 @@
 import { NextResponse } from "next/server";
+import { getLLM } from "@/lib/ai-provider";
+import { embedAndStore, fetchProjectContext } from "@/lib/rag";
+import { SystemMessage, HumanMessage } from "@langchain/core/messages";
+
+export const maxDuration = 120;
+
+const IEEE_RULES = `
+CRITICAL FORMATTING RULES:
+1. Maintain a highly professional, humanized academic tone. Do NOT sound robotic or AI-generated.
+2. Do NOT use Markdown asterisks (**bold**) or underscores (_italic_). Use plain prose.
+3. Include inline IEEE citations strictly as [1], [2], [3-5] where appropriate.
+4. Output ONLY the section paragraph text — NO heading, NO JSON, NO markdown wrappers.
+5. Every claim must be supported or at minimum framed in the context provided.
+`;
+
+const SECTION_CONFIGS: Record<string, { heading: string; wordCount: string; instructions: string }> = {
+  Abstract: {
+    heading: "Abstract",
+    wordCount: "200-250",
+    instructions: "Summarize the research problem, methodology, key findings, and implications. Must be self-contained.",
+  },
+  Introduction: {
+    heading: "I. INTRODUCTION",
+    wordCount: "450-550",
+    instructions: "Establish the research problem with real-world significance. Review the gap in knowledge. State the paper's contribution and outline the structure.",
+  },
+  "Literature Review": {
+    heading: "II. LITERATURE REVIEW",
+    wordCount: "550-700",
+    instructions: "Synthesize prior work thematically. Cite using [1], [2] format. Identify gaps that this study addresses. Group by theme, not chronology.",
+  },
+  Methodology: {
+    heading: "III. METHODOLOGY",
+    wordCount: "450-550",
+    instructions: "Describe the research design, sampling strategy, data collection instruments, and analysis techniques. Justify each choice with academic rationale.",
+  },
+  Results: {
+    heading: "IV. RESULTS AND DISCUSSION",
+    wordCount: "700-900",
+    instructions: "Present findings in detail. Reference verified claims and statistical results from the context. Include at least one specific statistic (β, p-value, CI). Discuss implications of each finding. Suggest a table or figure where appropriate by writing [TABLE: description] or [FIGURE: description] inline.",
+  },
+  Conclusion: {
+    heading: "V. CONCLUSION",
+    wordCount: "280-350",
+    instructions: "Summarize contributions, acknowledge limitations honestly, and suggest specific future research directions. Do not introduce new findings.",
+  },
+};
 
 export async function POST(req: Request) {
   try {
-    const { section, tone } = await req.json();
-    await new Promise(r => setTimeout(r, 3000));
+    const { section, tone, project_id } = await req.json();
 
-    const drafts: Record<string, string> = {
-      "Abstract": "This study examines the relationship between social media usage and academic performance among undergraduate students using a quasi-experimental design (n = 385). A statistically significant negative association was identified between daily hours of social media engagement and GPA (β = −0.45, p = 0.02, 95% CI [−0.78, −0.12]). The moderate effect size observed is consistent with prior literature and suggests that targeted digital wellness interventions may produce meaningful improvements in academic outcomes. Implications for educators, policymakers, and platform designers are discussed.",
+    if (!section) {
+      return NextResponse.json({ error: "section is required" }, { status: 400 });
+    }
 
-      "Introduction": "The rapid proliferation of social media has fundamentally transformed the social and informational environments that undergraduate students navigate daily. Platforms such as Instagram, TikTok, and X (formerly Twitter) now command an average of 6.5 hours of daily usage among young adults aged 18–24 (DataReportal, 2024), raising legitimate scholarly concerns about the implications for cognitive load, attention regulation, and academic productivity. Despite a growing body of literature examining this relationship, significant methodological heterogeneity — including cross-sectional designs, self-selected samples, and unvalidated measurement instruments — has limited the strength of causal claims available to researchers. The present study addresses this gap through the employment of a quasi-experimental design with pre-test/post-test measurements, enabling preliminary causal inference regarding the direction and magnitude of the relationship between social media usage and academic performance.",
+    const config = SECTION_CONFIGS[section];
+    if (!config) {
+      return NextResponse.json({ error: `Unknown section: ${section}` }, { status: 400 });
+    }
 
-      "Literature Review": "The relationship between social media usage and academic performance has received considerable scholarly attention over the past decade. Early correlational studies (Junco, 2012; Kirschner & Karpinski, 2010) identified significant negative associations between Facebook usage frequency and GPA, though these findings were confounded by self-regulation capacity and study-specific sampling biases. Subsequent meta-analyses have yielded heterogeneous results, with pooled effect sizes ranging from small to moderate (Habes et al., 2018; Vahedi & Zannella, 2021). Notably, the mediating roles of self-efficacy (Paul et al., 2012) and the type of social media activity — passive consumption versus active participation — have emerged as critical moderating factors (Verduyn et al., 2015). The present study contributes to this literature by employing a quasi-experimental design that partially addresses the temporal precedence limitations inherent in prior cross-sectional approaches.",
+    // Fetch the full cross-phase project context
+    let projectContext = "No project context available — generating from general academic knowledge.";
+    if (project_id) {
+      try {
+        projectContext = await fetchProjectContext(project_id);
+      } catch (e) {
+        console.warn("Context fetch failed:", e);
+      }
+    }
 
-      "Methodology": "A quasi-experimental design incorporating a non-equivalent control group was employed to investigate the relationship between social media usage and academic performance. Participants were recruited from three undergraduate programmes at a research-intensive university via purposive sampling. Eligibility criteria included: current undergraduate enrolment, age 18–30, and ownership of at least one active social media account. A total of 385 participants were enrolled following power analysis (α = .05, 1 − β = .80, d = 0.35), adjusted upward by 10% to account for expected attrition. The treatment condition involved structured social media restriction to a maximum of two hours per day for an eight-week intervention period, facilitated through the use of device-level application timers. Academic performance was operationalised as cumulative GPA at the conclusion of the intervention period, verified via official institutional transcripts. All procedures were approved by the Institutional Review Board (Protocol #2026-IRB-1142). Data were analysed using linear regression with robust standard errors in R (version 4.3.0, R Core Team, 2023).",
+    const model = getLLM(req, 0.55, "gemini-2.0-flash");
 
-      "Results": "A total of 357 participants completed all phases of the study, yielding an attrition rate of 7.3%. Baseline equivalence between treatment and control groups was confirmed across all demographic and academic covariates (all ps > .20). The primary regression analysis revealed a statistically significant negative relationship between social media usage and academic performance (β = −0.45, SE = 0.18, p = 0.02, 95% CI [−0.78, −0.12]). This effect persisted following the inclusion of demographic covariates (age, gender, year of study) in a fully adjusted model (β = −0.41, SE = 0.17, p = 0.03). The standardised effect size (Cohen's d = 0.48) is consistent with a moderate, practically meaningful relationship. Notably, participants in the treatment condition who maintained compliance with the two-hour restriction protocol demonstrated significantly higher post-intervention GPA scores relative to non-compliant counterparts (t(183) = 3.12, p = 0.002).",
+    const systemPrompt = `You are an expert academic researcher and scientific writer.
+You are drafting the "${section}" section for a research paper in IEEE format.
+${IEEE_RULES}
+Section-specific instructions: ${config.instructions}
+Target word count: ~${config.wordCount} words.`;
 
-      "Discussion": "The findings of the present study provide empirically robust support for the hypothesis that excessive social media usage negatively impacts academic performance among undergraduate students. The statistically significant negative relationship identified (β = −0.45, p = 0.02) replicates and extends the findings of earlier correlational studies (Junco, 2012; Habes et al., 2018) by employing a quasi-experimental design that partially addresses the temporal precedence limitations of cross-sectional approaches. The moderate effect size observed is practically meaningful and suggests that even modest reductions in daily social media engagement may translate into measurable academic benefits. These findings carry implications for institutional digital wellness programmes, suggesting that structured usage restriction interventions — when supported by adequate participant motivation and self-monitoring tools — represent a viable and scalable approach to improving undergraduate academic outcomes. Several limitations must be acknowledged, including the reliance on self-selected participants, the absence of full random assignment, and the use of GPA as the sole proxy for academic performance.",
+    const userMessage = `Using the project context below, draft the "${section}" section of the research paper.
+Be specific — reference the actual hypotheses, variables, results, and literature mentioned in the context.
+Do NOT be generic. Ground every sentence in the data provided.
 
-      "Conclusion": "This study contributes empirical evidence supporting a significant negative relationship between social media usage and academic performance in undergraduate populations. The quasi-experimental design employed strengthens the causal interpretation of these findings relative to prior cross-sectional studies, while the moderate effect size suggests meaningful practical significance. Institutional digital wellness programmes incorporating structured social media restriction may represent a scalable and cost-effective intervention for improving academic outcomes. Future research should employ longitudinal designs, larger nationally representative samples, and objective digital usage metrics to further elucidate the mechanisms and moderating factors underlying this relationship.",
-    };
+PROJECT CONTEXT:
+${projectContext}`;
 
-    const content = drafts[section] || `This is a ${tone} AI-generated draft for the ${section} section. Connect your OpenAI API key to generate context-aware content from your actual project phases.`;
+    const aiResponse = await model.invoke([
+      new SystemMessage(systemPrompt),
+      new HumanMessage(userMessage),
+    ]);
 
-    return NextResponse.json({ content, section, tone });
+    let content = typeof aiResponse.content === "string" ? aiResponse.content : "";
+    content = content.replace(/\*\*/g, "").replace(/```/g, "").trim();
+
+    // Wrap in the section HTML
+    const htmlContent = `<h2>${config.heading}</h2>\n<p>${content.replace(/\n\n+/g, "</p><p>").replace(/\n/g, " ")}</p>`;
+
+    // Embed and store this draft section
+    if (project_id) {
+      const typeKey = `draft_section_${section.toLowerCase().replace(/\s+/g, "_")}`;
+      await embedAndStore(
+        `${section} Section Draft: ${content.substring(0, 800)}`,
+        {
+          project_id,
+          phase: 8,
+          type: typeKey,
+          section,
+        },
+        req
+      );
+    }
+
+    return NextResponse.json({ content: htmlContent, section, tone });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("generate-section error:", error);
+    return NextResponse.json(
+      { error: error.message || "Failed to generate section" },
+      { status: 500 }
+    );
   }
 }

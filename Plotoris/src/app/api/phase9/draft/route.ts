@@ -99,7 +99,6 @@ async function draftSection(
   priorFeedback: string,
   req: Request
 ): Promise<string> {
-  const model = getLLM(req, 0.6, "gemini-2.0-flash");
 
   const systemPrompt = `You are an expert academic researcher and scientific writer.
 You are drafting the "${sectionConfig.heading}" section of a research paper in IEEE format.
@@ -114,6 +113,12 @@ Do NOT be generic.
 
 PROJECT CONTEXT:
 ${context}`;
+
+  // If using Groq, aggressively limit maxTokens to avoid blowing up the TPM
+  const apiProvider = req.headers.get("x-api-provider") || "gemini";
+  const maxTokens = apiProvider === "groq" ? 1000 : 1500;
+  
+  const model = getLLM(req, 0.6, "gemini-2.0-flash", maxTokens);
 
   const response = await model.invoke([
     new SystemMessage(systemPrompt),
@@ -136,7 +141,7 @@ async function runJuror(
   context: string,
   req: Request
 ): Promise<JurorResult> {
-  const model = getLLM(req, 0.2, "gemini-2.0-flash");
+  const model = getLLM(req, 0.2, "gemini-2.0-flash", 250);
 
   const systemPrompt = `You are ${jurorName}, a senior academic peer reviewer specializing in ${jurorRole}.
 You are evaluating the "${sectionName}" section of a research paper.
@@ -228,7 +233,7 @@ async function visualArchitect(
   methodologySection: string,
   req: Request
 ): Promise<string> {
-  const model = getLLM(req, 0.4, "gemini-2.0-flash");
+  const model = getLLM(req, 0.4, "gemini-2.0-flash", 1000);
 
   const systemPrompt = `You are a Visual Architect agent for academic papers.
 Based on the project context and paper sections, generate visual elements to enrich the paper.
@@ -331,7 +336,7 @@ ${resultsSection.substring(0, 1000)}`;
 // ──────────────────────────────────────────────────────────────────────────────
 
 async function draftReferences(context: string, req: Request): Promise<string> {
-  const model = getLLM(req, 0.3, "gemini-1.5-pro");
+  const model = getLLM(req, 0.3, "gemini-1.5-pro", 1000);
 
   const prompt = `You are an expert academic researcher. Generate the References section for a research paper.
 Based on the literature in the context, format all references in strict IEEE format.
@@ -371,33 +376,48 @@ export async function POST(request: Request) {
     // ── Step 2: Process each section through the Jury Loop ──────────────────
     const finalSections: Record<string, string> = {};
     const fullJuryLog: JuryRound[] = [];
+    
+    const apiProvider = request.headers.get("x-api-provider") || "gemini";
+    const isGroq = apiProvider === "groq";
 
-    const JUROR_CONFIGS = [
-      {
-        name: "Dr. Morgan (Methodologist)",
-        role: "research methodology, statistical rigor, and study design",
-      },
-      {
-        name: "Prof. Chen (Academic Editor)",
-        role: "academic prose quality, clarity, logical flow, and IEEE formatting",
-      },
-      {
-        name: "Dr. Patel (Evidence Reviewer)",
-        role: "citation strength, evidence grounding, and claim substantiation",
-      },
-    ];
+    // For Groq, aggressively trim context to fit 6000 TPM limits across loops
+    const draftingContext = isGroq ? richContext.substring(0, 6000) : richContext;
+
+    // Use a single generalized juror for Groq, or the full 3-juror panel for others
+    const JUROR_CONFIGS = isGroq 
+      ? [
+          {
+            name: "Prof. Chen (Academic Reviewer)",
+            role: "academic prose, logic, formatting, and evidence grounding",
+          }
+        ]
+      : [
+          {
+            name: "Dr. Morgan (Methodologist)",
+            role: "research methodology, statistical rigor, and study design",
+          },
+          {
+            name: "Prof. Chen (Academic Editor)",
+            role: "academic prose quality, clarity, logical flow, and IEEE formatting",
+          },
+          {
+            name: "Dr. Patel (Evidence Reviewer)",
+            role: "citation strength, evidence grounding, and claim substantiation",
+          },
+        ];
 
     for (const section of SECTIONS) {
       console.log(`[Phase9] Processing section: ${section.heading}`);
       let currentContent = "";
       let priorFeedback = "";
 
-      // Jury revision loop (max 2 rounds = 3 total drafts)
-      for (let round = 0; round <= 2; round++) {
+      // Jury revision loop (max 1 round for Groq to save tokens, max 2 for others)
+      const maxRounds = isGroq ? 1 : 2;
+      for (let round = 0; round <= maxRounds; round++) {
         // Draft (or re-draft) the section
-        currentContent = await draftSection(section, richContext, priorFeedback, request);
+        currentContent = await draftSection(section, draftingContext, priorFeedback, request);
 
-        // Run all 3 jurors in parallel
+        // Run jurors in parallel
         const jurorResults = await Promise.all(
           JUROR_CONFIGS.map((jc) =>
             runJuror(jc.name, jc.role, section.heading, currentContent, richContext, request)

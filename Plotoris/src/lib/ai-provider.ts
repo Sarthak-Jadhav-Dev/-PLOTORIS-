@@ -3,7 +3,7 @@ import { ChatGroq } from "@langchain/groq";
 import { ChatOpenAI, OpenAIEmbeddings } from "@langchain/openai";
 import { CohereEmbeddings } from "@langchain/cohere";
 
-export function getLLM(req: Request, defaultTemp = 0.2, defaultModel = "gemini-2.0-flash") {
+export function getLLM(req: Request, defaultTemp = 0.2, defaultModel = "gemini-2.0-flash", maxTokensOverride?: number) {
   const apiProvider = req.headers.get("x-api-provider") || "gemini";
   const apiKey = req.headers.get("x-api-key") || req.headers.get("x-gemini-key") || process.env.GEMINI_API_KEY;
 
@@ -17,7 +17,7 @@ export function getLLM(req: Request, defaultTemp = 0.2, defaultModel = "gemini-2
       apiKey: apiKey,
       model: groqModelName,
       temperature: defaultTemp,
-      maxTokens: 8192,
+      maxTokens: maxTokensOverride || 3000,
     });
   }
 
@@ -26,7 +26,7 @@ export function getLLM(req: Request, defaultTemp = 0.2, defaultModel = "gemini-2
       apiKey: apiKey,
       modelName: "gpt-4o",
       temperature: defaultTemp,
-      maxTokens: 8192,
+      maxTokens: maxTokensOverride || 8192,
     });
   }
 
@@ -34,7 +34,7 @@ export function getLLM(req: Request, defaultTemp = 0.2, defaultModel = "gemini-2
     apiKey: apiKey,
     model: defaultModel,
     temperature: defaultTemp,
-    maxOutputTokens: 8192,
+    maxOutputTokens: maxTokensOverride || 8192,
   });
 }
 

@@ -49,12 +49,12 @@ export async function POST(req: Request) {
     }
     const columns = dsData.metadata.columns || [];
 
-    // 2. Fetch formal variables from Phase 3 (Insights table)
+    // 2. Fetch formal variables from Phase 3 (Documents table, type: saved_variable)
     const { data: variablesData, error: varError } = await supabase
-      .from("Insights")
-      .select("title, description")
-      .eq("project_id", project_id)
-      .eq("type", "variable");
+      .from("Documents")
+      .select("metadata")
+      .eq("metadata->>project_id", project_id)
+      .eq("metadata->>type", "saved_variable");
 
     if (varError) throw varError;
     
@@ -63,10 +63,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "No formal variables found. Please define variables in Phase 3 first." }, { status: 400 });
     }
 
-    const formalVariables = variablesData.map(v => ({
-      name: v.title,
-      description: v.description
-    }));
+    const variableSet = new Set<string>();
+    const formalVariables: any[] = [];
+
+    variablesData.forEach(d => {
+      const meta = d.metadata;
+      if (meta.iv && !variableSet.has(meta.iv)) {
+        variableSet.add(meta.iv);
+        formalVariables.push({ name: meta.iv, description: meta.validation || "Independent Variable" });
+      }
+      if (meta.dv && !variableSet.has(meta.dv)) {
+        variableSet.add(meta.dv);
+        formalVariables.push({ name: meta.dv, description: meta.validation || "Dependent Variable" });
+      }
+    });
 
     const systemPrompt = `You are an AI Variable Linker for Plotoris, a research SaaS platform.
 You will be provided with a list of RAW COLUMNS extracted from a dataset, and a list of FORMAL VARIABLES defined by the researcher.

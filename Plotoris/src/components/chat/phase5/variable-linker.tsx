@@ -151,8 +151,8 @@ export default function VariableLinker({ projectId }: { projectId: string }) {
             {/* Summary Stats */}
             <div className="grid grid-cols-3 gap-4">
               {[
-                { label: "Auto-Matched", value: result.mappings.filter((m: any) => m.confidence >= 85).length, color: "text-emerald-400" },
-                { label: "Low Confidence", value: result.mappings.filter((m: any) => m.confidence < 85 && m.confidence >= 60).length, color: "text-amber-400" },
+                { label: "Auto-Matched", value: (result.mappings || []).filter((m: any) => m.confidence >= 85).length, color: "text-emerald-400" },
+                { label: "Low Confidence", value: (result.mappings || []).filter((m: any) => m.confidence < 85 && m.confidence >= 60).length, color: "text-amber-400" },
                 { label: "Unmapped", value: result.unmapped?.length || 0, color: "text-rose-400" },
               ].map((s, i) => (
                 <div key={i} className="bg-[#1a1a1a] border border-[#333] rounded-xl p-5 text-center">

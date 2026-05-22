@@ -76,13 +76,28 @@ export async function POST(req: Request) {
 
     const res = await model.invoke(prompt);
     let contentStr = res.content.toString().trim();
-    if (contentStr.startsWith("```json")) {
-      contentStr = contentStr.replace(/```json\n?/, "").replace(/```$/, "").trim();
-    } else if (contentStr.startsWith("```")) {
-      contentStr = contentStr.replace(/```\n?/, "").replace(/```$/, "").trim();
+    
+    // Remove markdown code blocks if present
+    contentStr = contentStr.replace(/```(?:json)?/gi, '').replace(/```/g, '').trim();
+    
+    // Extract everything between the first '[' and the last ']'
+    const startIndex = contentStr.indexOf('[');
+    const endIndex = contentStr.lastIndexOf(']');
+    
+    if (startIndex !== -1 && endIndex !== -1 && endIndex >= startIndex) {
+      contentStr = contentStr.substring(startIndex, endIndex + 1);
     }
 
-    const variables = JSON.parse(contentStr);
+    // Fix unescaped newlines inside strings which break JSON.parse
+    contentStr = contentStr.replace(/[\r\n]+/g, ' ');
+
+    let variables;
+    try {
+      variables = JSON.parse(contentStr);
+    } catch (parseErr: any) {
+      console.error("Parse Error. LLM returned:", res.content.toString());
+      return NextResponse.json({ error: `Failed to parse AI response. ${parseErr.message}` }, { status: 500 });
+    }
 
     return NextResponse.json({ variables });
 

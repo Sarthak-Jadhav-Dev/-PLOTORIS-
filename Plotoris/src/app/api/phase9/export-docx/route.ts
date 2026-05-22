@@ -165,7 +165,6 @@ export async function POST(request: Request) {
                 left: 1134,   // ~0.79 inch
               },
             },
-            pageNumberStart: 1,
           },
           children: paragraphs,
         },
